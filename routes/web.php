@@ -32,9 +32,28 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
 // Instructor/Lecturer Routes
 Route::middleware(['auth', 'role:lecturer'])->prefix('instructor')->name('instructor.')->group(function () {
     Route::get('/dashboard', [InstructorController::class, 'Dashboard'])->name('dashboard');
-    // Add more instructor-specific routes here
-    // Route::get('/courses', [InstructorController::class, 'courses'])->name('courses');
-    // Route::get('/students', [InstructorController::class, 'students'])->name('students');
+    
+    // Course Management Routes
+    Route::get('/courses/create', [InstructorController::class, 'createCourse'])->name('courses.create');
+    Route::get('/courses/manage', [InstructorController::class, 'manageCourses'])->name('courses.manage');
+    
+    // Lecture Materials Routes
+    Route::get('/materials/upload', [InstructorController::class, 'uploadMaterial'])->name('materials.upload');
+    Route::get('/materials', [InstructorController::class, 'viewMaterials'])->name('materials.index');
+    
+    // Assignment Routes
+    Route::get('/assignments/create', [InstructorController::class, 'createAssignment'])->name('assignments.create');
+    Route::get('/assignments/manage', [InstructorController::class, 'manageAssignments'])->name('assignments.manage');
+    
+    // Submission Routes
+    Route::get('/submissions', [InstructorController::class, 'viewSubmissions'])->name('submissions.index');
+    Route::get('/submissions/grade', [InstructorController::class, 'gradeAssignments'])->name('submissions.grade');
+    
+    // Students Routes
+    Route::get('/students', [InstructorController::class, 'viewEnrolledStudents'])->name('students.index');
+    
+    // Messages Routes
+    Route::get('/messages', [InstructorController::class, 'messages'])->name('messages.index');
 });
 
 // Admin Routes

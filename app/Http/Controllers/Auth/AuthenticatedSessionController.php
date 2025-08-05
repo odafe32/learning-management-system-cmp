@@ -46,6 +46,9 @@ class AuthenticatedSessionController extends Controller
 
             Log::info('Login successful for: ' . $request->email);
 
+            // Flash success message
+            $request->session()->flash('success', 'Welcome back! You have been successfully logged in.');
+
             return redirect()->intended(route('dashboard', absolute: false));
             
         } catch (\Exception $e) {
@@ -69,6 +72,9 @@ class AuthenticatedSessionController extends Controller
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
+
+        // Flash logout message
+        $request->session()->flash('success', 'You have been successfully logged out.');
 
         return redirect('/');
     }
