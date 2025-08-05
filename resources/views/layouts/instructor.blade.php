@@ -86,6 +86,88 @@
     margin-left: 10px;
     border-radius: 6px;
 }
+
+ .alert {
+        border: none;
+        border-radius: 12px;
+        padding: 20px;
+        position: relative;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .alert-success {
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        border-left: 4px solid #10b981;
+    }
+
+    .alert-danger {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        border-left: 4px solid #ef4444;
+    }
+
+    .alert .btn-close {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        opacity: 0.7;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+    .alert .btn-close:hover {
+        opacity: 1;
+        background-color: rgba(0, 0, 0, 0.1);
+        transform: scale(1.1);
+    }
+
+    .alert-success .btn-close:hover {
+        background-color: rgba(16, 185, 129, 0.1);
+    }
+
+    .alert-danger .btn-close:hover {
+        background-color: rgba(239, 68, 68, 0.1);
+    }
+
+    .text-success-emphasis {
+        color: #065f46 !important;
+    }
+
+    .text-danger-emphasis {
+        color: #7f1d1d !important;
+    }
+
+    /* Animation */
+    .alert.fade {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .alert.fade:not(.show) {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    .alert.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Logout loading state */
+    .logout-loading .spinner-border {
+        width: 1rem;
+        height: 1rem;
+    }
+    
+    .logout-loading {
+        opacity: 0.7;
+        pointer-events: none;
+    }
     </style>
 </head>
 <body>
@@ -307,49 +389,66 @@
 
 
         <!-- User Profile Start -->
-        <div class="dropdown">
-            <button class="users arrow-down-icon border border-gray-200 rounded-pill p-4 d-inline-block pe-40 position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <span class="position-relative">
-                    <img src="{{ url('assets/images/thumbs/user-img.png') }}" alt="Image" class="h-32 w-32 rounded-circle">
-                    <span class="activation-badge w-8 h-8 position-absolute inset-block-end-0 inset-inline-end-0"></span>
-                </span>
-            </button>
-            <div class="dropdown-menu dropdown-menu--lg border-0 bg-transparent p-0">
-                <div class="card border border-gray-100 rounded-12 box-shadow-custom">
-                    <div class="card-body">
-                        <div class="flex-align gap-8 mb-20 pb-20 border-bottom border-gray-100">
-                            <img src="{{ url('assets/images/thumbs/user-img.png') }}" alt="" class="w-54 h-54 rounded-circle">
-                            <div class="">
-                                <h4 class="mb-0">Michel John</h4>
-                                <p class="fw-medium text-13 text-gray-200">examplemail@mail.com</p>
-                            </div>
-                        </div>
-                        <ul class="max-h-270 overflow-y-auto scroll-sm pe-4">
-                            <li class="mb-4">
-                                <a href="setting.html" class="py-12 text-15 px-20 hover-bg-gray-50 text-gray-300 rounded-8 flex-align gap-8 fw-medium text-15">
-                                    <span class="text-2xl text-primary-600 d-flex"><i class="ph ph-user"></i></span>
-                                    <span class="text">Profile</span>
-                                </a>
-                            </li>
-                       
-                            <li class="mb-4">
-                                <a href="message.html" class="py-12 text-15 px-20 hover-bg-gray-50 text-gray-300 rounded-8 flex-align gap-8 fw-medium text-15">
-                                    <span class="text-2xl text-primary-600 d-flex"><i class="ph ph-chats-teardrop"></i></span>
-                                    <span class="text">Inbox</span>
-                                </a>
-                            </li>
-                        
-                            <li class="pt-8 border-top border-gray-100">
-                                <a href="" class="py-12 text-15 px-20 hover-bg-danger-50 text-gray-300 hover-text-danger-600 rounded-8 flex-align gap-8 fw-medium text-15">
-                                    <span class="text-2xl text-danger-600 d-flex"><i class="ph ph-sign-out"></i></span>
-                                    <span class="text">Log Out</span>
-                                </a>
-                            </li>
-                        </ul>
+ <div class="dropdown">
+    <button class="users arrow-down-icon border border-gray-200 rounded-pill p-4 d-inline-block pe-40 position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <span class="position-relative">
+            <img src="{{ Auth::user()->avatar ? Storage::url(Auth::user()->avatar) : url('assets/images/thumbs/user-img.png') }}" 
+                 alt="Profile Image" 
+                 class="h-32 w-32 rounded-circle object-fit-cover">
+            <span class="activation-badge w-8 h-8 position-absolute inset-block-end-0 inset-inline-end-0"></span>
+        </span>
+    </button>
+    <div class="dropdown-menu dropdown-menu--lg border-0 bg-transparent p-0">
+        <div class="card border border-gray-100 rounded-12 box-shadow-custom">
+            <div class="card-body">
+                <div class="flex-align gap-8 mb-20 pb-20 border-bottom border-gray-100">
+                    <img src="{{ Auth::user()->avatar ? Storage::url(Auth::user()->avatar) : url('assets/images/thumbs/user-img.png') }}" 
+                         alt="Profile Image" 
+                         class="w-54 h-54 rounded-circle object-fit-cover">
+                    <div class="">
+                        <h4 class="mb-0">{{ Auth::user()->name ?? 'User' }}</h4>
+                        <p class="fw-medium text-13 text-gray-200">{{ Auth::user()->email ?? 'user@example.com' }}</p>
+                        @if(Auth::user()->role)
+                            <span class="badge bg-primary-50 text-primary-600 text-xs px-8 py-4 rounded-4">
+                                {{ ucfirst(Auth::user()->role) }}
+                            </span>
+                        @endif
                     </div>
                 </div>
+                <ul class="max-h-270 overflow-y-auto scroll-sm pe-4">
+                    <li class="mb-4">
+                        <a href="{{ route('instructor.profile') }}" class="py-12 text-15 px-20 hover-bg-gray-50 text-gray-300 rounded-8 flex-align gap-8 fw-medium text-15 {{ request()->routeIs('instructor.profile') ? 'bg-primary-50 text-primary-600' : '' }}">
+                            <span class="text-2xl {{ request()->routeIs('instructor.profile') ? 'text-primary-600' : 'text-primary-600' }} d-flex">
+                                <i class="ph ph-user-circle"></i>
+                            </span>
+                            <span class="text">Profile</span>
+                        </a>
+                    </li>
+               
+                    <li class="mb-4">
+                        <a href="{{ route('instructor.messages.index') }}" class="py-12 text-15 px-20 hover-bg-gray-50 text-gray-300 rounded-8 flex-align gap-8 fw-medium text-15 {{ request()->routeIs('instructor.messages.*') ? 'bg-primary-50 text-primary-600' : '' }}">
+                            <span class="text-2xl {{ request()->routeIs('instructor.messages.*') ? 'text-primary-600' : 'text-primary-600' }} d-flex">
+                                <i class="ph ph-chats-teardrop"></i>
+                            </span>
+                            <span class="text">Inbox</span>
+                        </a>
+                    </li>
+                
+                    <li class="pt-8 border-top border-gray-100">
+                        <a href="#" id="logoutBtn" class="py-12 text-15 px-20 hover-bg-danger-50 text-gray-300 hover-text-danger-600 rounded-8 flex-align gap-8 fw-medium text-15">
+                            <span class="text-2xl text-danger-600 d-flex">
+                                <i class="ph ph-sign-out logout-icon"></i>
+                                <span class="spinner-border spinner-border-sm logout-spinner d-none" role="status" aria-hidden="true"></span>
+                            </span>
+                            <span class="text logout-text">Log Out</span>
+                            <span class="text logout-loading-text d-none">Logging out...</span>
+                        </a>
+                    </li>
+                </ul>
             </div>
         </div>
+    </div>
+</div>
         <!-- User Profile Start -->
 
     </div>
@@ -357,6 +456,36 @@
 
         
         <div class="dashboard-body">
+            @if (session('success'))
+    <div class="alert alert-success alert-dismissible fade show mb-24" role="alert" id="dashboardSuccessAlert">
+        <div class="d-flex align-items-center">
+            <i class="ph ph-check-circle text-success me-12 text-xl"></i>
+            <div class="flex-grow-1">
+                <h6 class="mb-4 text-success fw-semibold">Welcome!</h6>
+                <p class="mb-0 text-success-emphasis">{{ session('success') }}</p>
+            </div>
+            <button type="button" class="btn-close ms-12" data-dismiss="alert" aria-label="Close">
+                <i class="ph ph-x text-success"></i>
+            </button>
+        </div>
+    </div>
+@endif
+
+@if (session('error'))
+    <div class="alert alert-danger alert-dismissible fade show mb-24" role="alert" id="dashboardErrorAlert">
+        <div class="d-flex align-items-center">
+            <i class="ph ph-warning-circle text-danger me-12 text-xl"></i>
+            <div class="flex-grow-1">
+                <h6 class="mb-4 text-danger fw-semibold">Error!</h6>
+                <p class="mb-0 text-danger-emphasis">{{ session('error') }}</p>
+            </div>
+            <button type="button" class="btn-close ms-12" data-dismiss="alert" aria-label="Close">
+                <i class="ph ph-x text-danger"></i>
+            </button>
+        </div>
+    </div>
+@endif
+
      
             <div >
                 {{ $slot }}
@@ -373,7 +502,104 @@
 
 
     <script>
-        // Add this to your main.js file or in a <script> tag
+   document.addEventListener('DOMContentLoaded', function() {
+        // Handle alert dismissal
+        document.querySelectorAll('.alert .btn-close').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const alert = this.closest('.alert');
+                if (alert) {
+                    alert.classList.remove('show');
+                    alert.classList.add('fade');
+                    setTimeout(() => {
+                        if (alert.parentNode) {
+                            alert.remove();
+                        }
+                    }, 300);
+                }
+            });
+        });
+
+        // Auto dismiss success alerts after 6 seconds
+        const successAlert = document.getElementById('dashboardSuccessAlert');
+        if (successAlert) {
+            setTimeout(() => {
+                if (successAlert && successAlert.parentNode) {
+                    successAlert.classList.remove('show');
+                    successAlert.classList.add('fade');
+                    setTimeout(() => {
+                        if (successAlert.parentNode) {
+                            successAlert.remove();
+                        }
+                    }, 300);
+                }
+            }, 6000);
+        }
+
+        // AJAX Logout functionality
+        const logoutBtn = document.getElementById('logoutBtn');
+        const logoutIcon = document.querySelector('.logout-icon');
+        const logoutSpinner = document.querySelector('.logout-spinner');
+        const logoutText = document.querySelector('.logout-text');
+        const logoutLoadingText = document.querySelector('.logout-loading-text');
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Prevent double clicks
+                if (logoutBtn.classList.contains('logout-loading')) {
+                    return;
+                }
+
+                // Show loading state
+                logoutBtn.classList.add('logout-loading');
+                logoutIcon.classList.add('d-none');
+                logoutSpinner.classList.remove('d-none');
+                logoutText.classList.add('d-none');
+                logoutLoadingText.classList.remove('d-none');
+
+                // Get CSRF token
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+                // Make AJAX request
+                fetch('{{ route("logout.ajax") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message briefly before redirect
+                        console.log('Logout successful:', data.message);
+                        
+                        // Redirect to login page
+                        window.location.href = data.redirect;
+                    } else {
+                        throw new Error(data.message || 'Logout failed');
+                    }
+                })
+                .catch(error => {
+                    console.error('Logout error:', error);
+                    
+                    // Reset loading state
+                    logoutBtn.classList.remove('logout-loading');
+                    logoutIcon.classList.remove('d-none');
+                    logoutSpinner.classList.add('d-none');
+                    logoutText.classList.remove('d-none');
+                    logoutLoadingText.classList.add('d-none');
+                    
+                    // Show error message
+                    alert('Logout failed. Please try again.');
+                });
+            });
+        }
+    });
 
 document.addEventListener('DOMContentLoaded', function() {
     // Handle dropdown toggles

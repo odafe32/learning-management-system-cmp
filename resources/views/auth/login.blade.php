@@ -2,7 +2,6 @@
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    <!-- Add CSRF token to meta tag for JavaScript access -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <section class="auth d-flex">
@@ -17,21 +16,40 @@
                 <h2 class="mb-8">Welcome Back! 👋</h2>
                 <p class="text-gray-600 text-15 mb-32">Please sign in to your account and start the adventure</p>
 
+                <!-- Success Messages -->
+                @if (session('success'))
+                    <div class="alert alert-success alert-dismissible fade show mb-3" role="alert" id="successAlert">
+                        <i class="ph ph-check-circle me-2"></i>
+                        {{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
+                @endif
+
                 <!-- Display CSRF Error if it occurs -->
                 @if ($errors->has('csrf'))
-                    <div class="alert alert-danger mb-3">
+                    <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                        <i class="ph ph-warning-circle me-2"></i>
                         Session expired. Please try again.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close">
+                            <i class="ph ph-x"></i>
+                        </button>
                     </div>
                 @endif
 
                 <!-- Display validation errors -->
                 @if ($errors->any())
-                    <div class="alert alert-danger mb-3">
+                    <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                        <i class="ph ph-warning-circle me-2"></i>
                         <ul class="mb-0">
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close">
+                            <i class="ph ph-x"></i>
+                        </button>
                     </div>
                 @endif
 
@@ -48,7 +66,7 @@
                                    name="email"
                                    value="{{ old('email') }}"
                                    placeholder="Type your email"
-                                   
+                                   required
                                    autofocus 
                                    autocomplete="username">
                             <span class="position-absolute top-50 translate-middle-y ms-16 text-gray-600 d-flex">
@@ -71,7 +89,7 @@
                                    id="password" 
                                    name="password"
                                    placeholder="Enter your password" 
-                                   
+                                   required
                                    autocomplete="current-password">
                             <span class="toggle-password position-absolute top-50 inset-inline-end-0 me-16 translate-middle-y ph ph-eye-slash" 
                                   onclick="togglePassword('password')"></span>
@@ -129,11 +147,24 @@
             cursor: not-allowed;
         }
 
+        /* Alert Styles */
         .alert {
-            padding: 0.75rem 1.25rem;
+            padding: 0.875rem 1.25rem;
             margin-bottom: 1rem;
             border: 1px solid transparent;
-            border-radius: 0.375rem;
+            border-radius: 0.5rem;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .alert-success {
+            color: #0f5132;
+            background-color: #d1e7dd;
+            border-color: #a3cfbb;
         }
 
         .alert-danger {
@@ -145,10 +176,46 @@
         .alert ul {
             list-style: none;
             padding-left: 0;
+            margin: 0;
+            flex: 1;
         }
 
         .alert li {
             margin-bottom: 0.25rem;
+        }
+
+        .alert li:last-child {
+            margin-bottom: 0;
+        }
+
+        .alert .btn-close {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            opacity: 0.7;
+            cursor: pointer;
+            padding: 0;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            transition: opacity 0.15s ease-in-out, background-color 0.15s ease-in-out;
+        }
+
+        .alert .btn-close:hover {
+            opacity: 1;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .alert-success .btn-close:hover {
+            background-color: rgba(15, 81, 50, 0.1);
+        }
+
+        .alert-danger .btn-close:hover {
+            background-color: rgba(114, 28, 36, 0.1);
         }
 
         /* Ensure loading state is visible */
@@ -164,6 +231,19 @@
 
         .btn-text.d-none {
             display: none !important;
+        }
+
+        /* Alert Animation */
+        .alert.fade {
+            transition: opacity 0.15s linear;
+        }
+
+        .alert.fade:not(.show) {
+            opacity: 0;
+        }
+
+        .alert.show {
+            opacity: 1;
         }
     </style>
 
@@ -185,9 +265,50 @@
             }
         }
 
+        // Alert dismissal functionality
+        function dismissAlert(alertId) {
+            const alert = document.getElementById(alertId);
+            if (alert) {
+                alert.classList.remove('show');
+                alert.classList.add('fade');
+                setTimeout(() => {
+                    alert.remove();
+                }, 150);
+            }
+        }
+
         // Main loading functionality
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, initializing login form...');
+            
+            // Setup alert dismissal
+            document.querySelectorAll('.alert .btn-close').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const alert = this.closest('.alert');
+                    if (alert) {
+                        alert.classList.remove('show');
+                        setTimeout(() => {
+                            alert.remove();
+                        }, 150);
+                    }
+                });
+            });
+
+            // Auto dismiss success alerts after 5 seconds
+            const successAlert = document.getElementById('successAlert');
+            if (successAlert) {
+                setTimeout(() => {
+                    if (successAlert && successAlert.parentNode) {
+                        successAlert.classList.remove('show');
+                        setTimeout(() => {
+                            if (successAlert.parentNode) {
+                                successAlert.remove();
+                            }
+                        }, 150);
+                    }
+                }, 5000);
+            }
             
             // Setup CSRF token for fetch requests
             const token = document.querySelector('meta[name="csrf-token"]');

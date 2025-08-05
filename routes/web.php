@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\InstructorController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
 
 // Default dashboard route - redirects to role-specific dashboard
@@ -19,6 +20,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // AJAX Logout route
+    Route::post('/logout-ajax', [AuthenticatedSessionController::class, 'logoutAjax'])->name('logout.ajax');
 });
 
 // Student Routes
@@ -30,32 +34,49 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
 });
 
 // Instructor/Lecturer Routes
-Route::middleware(['auth', 'role:lecturer'])->prefix('instructor')->name('instructor.')->group(function () {
-    Route::get('/dashboard', [InstructorController::class, 'Dashboard'])->name('dashboard');
+Route::middleware(['auth'])->prefix('instructor')->name('instructor.')->group(function () {
+    // Dashboard
+    Route::get('/dashboard', [InstructorController::class, 'dashboard'])->name('dashboard');
     
-    // Course Management Routes
-    Route::get('/courses/create', [InstructorController::class, 'createCourse'])->name('courses.create');
-    Route::get('/courses/manage', [InstructorController::class, 'manageCourses'])->name('courses.manage');
+    // Profile Management
+    Route::get('/profile', [InstructorController::class, 'profile'])->name('profile');
+    Route::put('/profile', [InstructorController::class, 'updateProfile'])->name('profile.update');
+    Route::put('/profile/password', [InstructorController::class, 'updatePassword'])->name('profile.password');
     
-    // Lecture Materials Routes
-    Route::get('/materials/upload', [InstructorController::class, 'uploadMaterial'])->name('materials.upload');
-    Route::get('/materials', [InstructorController::class, 'viewMaterials'])->name('materials.index');
+    // Courses
+    Route::prefix('courses')->name('courses.')->group(function () {
+        Route::get('/create', [InstructorController::class, 'createCourse'])->name('create');
+        Route::get('/manage', [InstructorController::class, 'manageCourses'])->name('manage');
+    });
     
-    // Assignment Routes
-    Route::get('/assignments/create', [InstructorController::class, 'createAssignment'])->name('assignments.create');
-    Route::get('/assignments/manage', [InstructorController::class, 'manageAssignments'])->name('assignments.manage');
+    // Materials
+    Route::prefix('materials')->name('materials.')->group(function () {
+        Route::get('/upload', [InstructorController::class, 'uploadMaterial'])->name('upload');
+        Route::get('/', [InstructorController::class, 'viewMaterials'])->name('index');
+    });
     
-    // Submission Routes
-    Route::get('/submissions', [InstructorController::class, 'viewSubmissions'])->name('submissions.index');
-    Route::get('/submissions/grade', [InstructorController::class, 'gradeAssignments'])->name('submissions.grade');
+    // Assignments
+    Route::prefix('assignments')->name('assignments.')->group(function () {
+        Route::get('/create', [InstructorController::class, 'createAssignment'])->name('create');
+        Route::get('/manage', [InstructorController::class, 'manageAssignments'])->name('manage');
+    });
     
-    // Students Routes
-    Route::get('/students', [InstructorController::class, 'viewEnrolledStudents'])->name('students.index');
+    // Submissions
+    Route::prefix('submissions')->name('submissions.')->group(function () {
+        Route::get('/', [InstructorController::class, 'viewSubmissions'])->name('index');
+        Route::get('/grade', [InstructorController::class, 'gradeAssignments'])->name('grade');
+    });
     
-    // Messages Routes
-    Route::get('/messages', [InstructorController::class, 'messages'])->name('messages.index');
+    // Students
+    Route::prefix('students')->name('students.')->group(function () {
+        Route::get('/', [InstructorController::class, 'viewEnrolledStudents'])->name('index');
+    });
+    
+    // Messages
+    Route::prefix('messages')->name('messages.')->group(function () {
+        Route::get('/', [InstructorController::class, 'messages'])->name('index');
+    });
 });
-
 // Admin Routes
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'Dashboard'])->name('dashboard');
