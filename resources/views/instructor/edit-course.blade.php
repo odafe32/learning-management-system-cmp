@@ -183,18 +183,18 @@
                                 <div class="col-12">
                                     <div class="flex-align justify-content-between">
                                         <div class="d-flex align-items-center gap-8">
-                                            <a href="{{ route('instructor.courses.manage') }}" class="btn btn-outline-gray-400 radius-8 px-20 py-11">Cancel</a>
-                                            <button type="reset" class="btn btn-outline-warning-600 radius-8 px-20 py-11">
+                                            <a href="{{ route('instructor.courses.manage') }}" class="btn btn-gray radius-8 px-20 py-11">Cancel</a>
+                                            <button type="reset" class="btn btn-warning radius-8 px-20 py-11">
                                                 <i class="ph ph-arrow-counter-clockwise me-8"></i>
                                                 Reset Changes
                                             </button>
                                         </div>
                                         <div class="d-flex align-items-center gap-8">
-                                            <button type="button" class="btn btn-outline-danger-600 radius-8 px-20 py-11" onclick="deleteCourse({{ $course->id }}, '{{ $course->title }}')">
+                                            <button type="button" class="btn btn-danger radius-8 px-20 py-11" onclick="deleteCourse({{ $course->id }}, '{{ $course->title }}')">
                                                 <i class="ph ph-trash me-8"></i>
                                                 Delete Course
                                             </button>
-                                            <button type="submit" class="btn btn-primary-600 radius-8 px-20 py-11">
+                                            <button type="submit" class="btn btn-primary radius-8 px-20 py-11">
                                                 <i class="ph ph-check-circle me-8"></i>
                                                 Update Course
                                             </button>

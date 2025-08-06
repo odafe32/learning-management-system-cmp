@@ -54,10 +54,14 @@ Route::middleware(['auth'])->prefix('instructor')->name('instructor.')->group(fu
     });
     
     // Materials
-    Route::prefix('materials')->name('materials.')->group(function () {
-        Route::get('/upload', [InstructorController::class, 'uploadMaterial'])->name('upload');
-        Route::get('/', [InstructorController::class, 'viewMaterials'])->name('index');
-    });
+ Route::get('/materials', [InstructorController::class, 'viewMaterials'])->name('materials.index');
+    Route::get('/materials/upload', [InstructorController::class, 'uploadMaterial'])->name('materials.upload');
+    Route::post('/materials', [InstructorController::class, 'storeMaterial'])->name('materials.store');
+    Route::get('/materials/{material}/edit', [InstructorController::class, 'editMaterial'])->name('materials.edit');
+    Route::put('/materials/{material}', [InstructorController::class, 'updateMaterial'])->name('materials.update');
+    Route::delete('/materials/{material}', [InstructorController::class, 'deleteMaterial'])->name('materials.destroy');
+    Route::get('/materials/{material}/download', [InstructorController::class, 'downloadMaterial'])->name('materials.download');
+
     
     // Assignments
     Route::prefix('assignments')->name('assignments.')->group(function () {

@@ -16,12 +16,11 @@
                 <li class="fw-medium">
                     <span class="text-gray-300">/</span>
                 </li>
-                <li class="fw-medium text-primary-600">Courses</li>
+                <li class="fw-medium text-primary">Courses</li>
             </ul>
         </div>
 
-    
-
+        
         <div class="row gy-4">
             <!-- Filters and Search -->
             <div class="col-12">
@@ -70,7 +69,7 @@
                                     <button type="submit" class="btn btn-primary radius-8 flex-grow-1">
                                         <i class="ph ph-magnifying-glass"></i>
                                     </button>
-                                    <a href="{{ route('instructor.courses.manage') }}" class="btn btn-outline-gray-400 radius-8">
+                                    <a href="{{ route('instructor.courses.manage') }}" class="btn btn-gray radius-8">
                                         <i class="ph ph-x"></i>
                                     </a>
                                 </div>
@@ -152,9 +151,9 @@
                                                             <i class="ph ph-pencil-simple"></i>
                                                         </a>
                                                         <button type="button" 
-                                                                class="w-32 h-32 btn-danger-focus text-danger rounded-circle d-inline-flex align-items-center justify-content-center border-0"
+                                                                class="w-32 h-32  text-danger rounded-circle d-inline-flex align-items-center justify-content-center border-0"
                                                                 title="Delete Course" 
-                                                                onclick="deleteCourse({{ $course->id }}, '{{ $course->title }}')">
+                                                                onclick="deleteCourse('{{ $course->id }}', '{{ addslashes($course->title) }}')">
                                                             <i class="ph ph-trash"></i>
                                                         </button>
                                                     </div>
@@ -175,7 +174,7 @@
                                 </div>
                             @endif
                         @else
-                            <div class="py-120 text-center flex justify-center items-center flex-col">
+                            <div class="py-120 text-center">
                                 <img src="{{ url('assets/images/thumbs/empty.jpg') }}" width="200px" alt="No courses" class="mb-24">
                                 <h6 class="mb-16">No courses found</h6>
                                 <p class="text-gray-600 mb-24">
@@ -198,23 +197,30 @@
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Confirm Delete</h5>
+                    <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Are you sure you want to delete the course "<span id="courseTitle"></span>"?</p>
-                    <p class="text-danger text-sm mb-0">This action cannot be undone.</p>
+                    <div class="text-center py-20">
+                        <i class="ph ph-warning-circle text-danger text-64 mb-16"></i>
+                        <h6 class="mb-16">Delete Course</h6>
+                        <p>Are you sure you want to delete the course "<span id="courseTitle" class="fw-medium"></span>"?</p>
+                        <p class="text-danger text-sm mb-0">This action cannot be undone and will permanently remove all course data.</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-gray" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-gray" data-bs-dismiss="modal">Cancel</button>
                     <form id="deleteForm" method="POST" style="display: inline;">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="btn btn-danger">Delete Course</button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="ph ph-trash me-8"></i>
+                            Delete Course
+                        </button>
                     </form>
                 </div>
             </div>
@@ -223,15 +229,42 @@
 
     <script>
     function deleteCourse(courseId, courseTitle) {
-        document.getElementById('courseTitle').textContent = courseTitle;
-        document.getElementById('deleteForm').action = `/instructor/courses/${courseId}`;
+        console.log('Delete course called:', courseId, courseTitle); // Debug log
         
-        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        modal.show();
+        // Set the course title in the modal
+        const titleElement = document.getElementById('courseTitle');
+        if (titleElement) {
+            titleElement.textContent = courseTitle;
+        }
+        
+        // Set the form action
+        const deleteForm = document.getElementById('deleteForm');
+        if (deleteForm) {
+            deleteForm.action = `/instructor/courses/${courseId}`;
+        }
+        
+        // Show the modal
+        const modalElement = document.getElementById('deleteModal');
+        if (modalElement) {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        } else {
+            console.error('Modal element not found');
+        }
     }
 
-    // Auto-submit form on filter change (optional)
+    // Document ready
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded'); // Debug log
+        
+        // Check if Bootstrap is loaded
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap is not loaded');
+        } else {
+            console.log('Bootstrap is loaded');
+        }
+        
+        // Auto-submit form on filter change (optional)
         const filterSelects = document.querySelectorAll('select[name="status"], select[name="level"], select[name="semester"]');
         
         filterSelects.forEach(select => {
@@ -240,6 +273,18 @@
                 // this.form.submit();
             });
         });
+
+        // Handle delete form submission
+        const deleteForm = document.getElementById('deleteForm');
+        if (deleteForm) {
+            deleteForm.addEventListener('submit', function(e) {
+                const submitBtn = this.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...';
+                }
+            });
+        }
     });
     </script>
 </x-instructor-layout>

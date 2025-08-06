@@ -2,13 +2,28 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class Course extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids;
+
+    /**
+     * The data type of the auto-incrementing ID.
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
+
+    /**
+     * Indicates if the IDs are auto-incrementing.
+     *
+     * @var bool
+     */
+    public $incrementing = false;
 
     protected $fillable = [
         'user_id',
@@ -99,7 +114,7 @@ class Course extends Model
             '200' => '200 Level',
             '300' => '300 Level',
             '400' => '400 Level',
-          
+  
         ];
     }
 
