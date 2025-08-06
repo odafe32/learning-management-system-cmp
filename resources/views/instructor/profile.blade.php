@@ -44,7 +44,7 @@
                                                  id="avatarPreview">
                                            <label for="avatar" class="position-absolute bottom-0 end-0 bg-primary-600 text-white w-32 h-32 rounded-circle flex-center cursor-pointer hover-bg-primary-700 transition-2">
     <i class="ph ph-camera"></i>
-</label>-icon>
+</label>
                                             </label>
                                         </div>
                                         <div>

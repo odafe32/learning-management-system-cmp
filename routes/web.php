@@ -43,10 +43,14 @@ Route::middleware(['auth'])->prefix('instructor')->name('instructor.')->group(fu
     Route::put('/profile', [InstructorController::class, 'updateProfile'])->name('profile.update');
     Route::put('/profile/password', [InstructorController::class, 'updatePassword'])->name('profile.password');
     
-    // Courses
+    // Courses - Complete CRUD
     Route::prefix('courses')->name('courses.')->group(function () {
         Route::get('/create', [InstructorController::class, 'createCourse'])->name('create');
+        Route::post('/create', [InstructorController::class, 'storeCourse'])->name('store');
         Route::get('/manage', [InstructorController::class, 'manageCourses'])->name('manage');
+        Route::get('/{course}/edit', [InstructorController::class, 'editCourse'])->name('edit');
+        Route::put('/{course}', [InstructorController::class, 'updateCourse'])->name('update');
+        Route::delete('/{course}', [InstructorController::class, 'deleteCourse'])->name('delete');
     });
     
     // Materials
@@ -77,6 +81,7 @@ Route::middleware(['auth'])->prefix('instructor')->name('instructor.')->group(fu
         Route::get('/', [InstructorController::class, 'messages'])->name('index');
     });
 });
+
 // Admin Routes
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'Dashboard'])->name('dashboard');
