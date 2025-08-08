@@ -54,19 +54,26 @@ Route::middleware(['auth'])->prefix('instructor')->name('instructor.')->group(fu
     });
     
     // Materials
- Route::get('/materials', [InstructorController::class, 'viewMaterials'])->name('materials.index');
+    Route::get('/materials', [InstructorController::class, 'viewMaterials'])->name('materials.index');
     Route::get('/materials/upload', [InstructorController::class, 'uploadMaterial'])->name('materials.upload');
     Route::post('/materials', [InstructorController::class, 'storeMaterial'])->name('materials.store');
     Route::get('/materials/{material}/edit', [InstructorController::class, 'editMaterial'])->name('materials.edit');
     Route::put('/materials/{material}', [InstructorController::class, 'updateMaterial'])->name('materials.update');
     Route::delete('/materials/{material}', [InstructorController::class, 'deleteMaterial'])->name('materials.destroy');
     Route::get('/materials/{material}/download', [InstructorController::class, 'downloadMaterial'])->name('materials.download');
+    Route::get('/{material}/view', [InstructorController::class, 'viewMaterial'])->name('view');
+    Route::get('/materials/{material}/serve', [InstructorController::class, 'serveMaterial'])->name('materials.serve');
+    Route::get('/materials/{material}/stream', [InstructorController::class, 'streamMaterial'])->name('materials.stream');
 
-    
-    // Assignments
+    // Assignments - Complete CRUD
     Route::prefix('assignments')->name('assignments.')->group(function () {
         Route::get('/create', [InstructorController::class, 'createAssignment'])->name('create');
+        Route::post('/create', [InstructorController::class, 'storeAssignment'])->name('store');
         Route::get('/manage', [InstructorController::class, 'manageAssignments'])->name('manage');
+        Route::get('/{assignment}', [InstructorController::class, 'viewAssignment'])->name('view');
+        Route::get('/{assignment}/edit', [InstructorController::class, 'editAssignment'])->name('edit');
+        Route::put('/{assignment}', [InstructorController::class, 'updateAssignment'])->name('update');
+        Route::delete('/{assignment}', [InstructorController::class, 'deleteAssignment'])->name('delete');
     });
     
     // Submissions

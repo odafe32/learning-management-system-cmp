@@ -55,7 +55,7 @@
                                                 Maximum file size: {{ $maxFileSize / 1024 }}MB
                                             </p>
                                             <input type="file" id="file" name="file" accept=".{{ implode(',.',$allowedTypes) }}" class="d-none" required>
-                                            <button type="button" class="btn btn-outline-primary-600 radius-8 px-20 py-11" onclick="document.getElementById('file').click()">
+                                            <button type="button" class="btn btn-primary radius-8 px-20 py-11" onclick="document.getElementById('file').click()">
                                                 <i class="ph ph-plus me-8"></i>
                                                 Choose File
                                             </button>

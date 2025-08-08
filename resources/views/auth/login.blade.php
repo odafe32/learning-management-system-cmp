@@ -1,4 +1,8 @@
-<x-guest-layout>
+<x-guest-layout
+ :metaTitle="$meta_title"
+    :metaDesc="$meta_desc"
+    :metaImage="$meta_image"
+>
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 

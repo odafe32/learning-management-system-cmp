@@ -20,7 +20,22 @@
             </ul>
         </div>
 
+        <!-- Success/Error Messages -->
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="ph ph-check-circle me-8"></i>
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
 
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="ph ph-x-circle me-8"></i>
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
 
         <!-- Filters and Search -->
         <div class="card mb-24">
@@ -103,10 +118,16 @@
                                                         </button>
                                                         <ul class="dropdown-menu">
                                                             <li>
-                                                                <button type="button" class="dropdown-item" onclick="previewFile('{{ $materialItem->id }}', '{{ $materialItem->title }}', '{{ $materialItem->file_url }}', '{{ $materialItem->file_type }}')">
+                                                                <button type="button" class="dropdown-item" onclick="previewFile('{{ $materialItem->id }}', '{{ addslashes($materialItem->title) }}', '{{ $materialItem->file_url }}', '{{ $materialItem->file_type }}')">
                                                                     <i class="ph ph-eye me-8"></i>
                                                                     Preview
                                                                 </button>
+                                                            </li>
+                                                            <li>
+                                                                <a class="dropdown-item" href="{{ $materialItem->file_url }}" target="_blank">
+                                                                    <i class="ph ph-arrow-square-out me-8"></i>
+                                                                    Open in New Tab
+                                                                </a>
                                                             </li>
                                                             <li>
                                                                 <a class="dropdown-item" href="{{ route('instructor.materials.download', $materialItem) }}">
@@ -122,7 +143,7 @@
                                                             </li>
                                                             <li><hr class="dropdown-divider"></li>
                                                             <li>
-                                                                <button type="button" class="dropdown-item text-danger" onclick="showDeleteModal('{{ $materialItem->id }}', '{{ $materialItem->title }}')">
+                                                                <button type="button" class="dropdown-item text-danger" onclick="showDeleteModal('{{ $materialItem->id }}', '{{ addslashes($materialItem->title) }}')">
                                                                     <i class="ph ph-trash me-8"></i>
                                                                     Delete
                                                                 </button>
@@ -155,7 +176,7 @@
 
                                                 <!-- Quick Action Buttons -->
                                                 <div class="d-flex gap-2 mt-12">
-                                                    <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1" onclick="previewFile('{{ $materialItem->id }}', '{{ $materialItem->title }}', '{{ $materialItem->file_url }}', '{{ $materialItem->file_type }}')">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1" onclick="previewFile('{{ $materialItem->id }}', '{{ addslashes($materialItem->title) }}', '{{ $materialItem->file_url }}', '{{ $materialItem->file_type }}')">
                                                         <i class="ph ph-eye me-4"></i>
                                                         Preview
                                                     </button>
@@ -222,9 +243,13 @@
                         <i class="ph ph-x me-8"></i>
                         Close
                     </button>
-                    <a id="downloadBtn" href="#" class="btn btn-primary radius-8">
+                    <a id="downloadBtn" href="#" class="btn btn-outline-primary radius-8">
                         <i class="ph ph-download me-8"></i>
                         Download
+                    </a>
+                    <a id="openNewTabBtn" href="#" target="_blank" class="btn btn-primary radius-8">
+                        <i class="ph ph-arrow-square-out me-8"></i>
+                        Open in New Tab
                     </a>
                 </div>
             </div>
@@ -364,6 +389,7 @@
         max-width: 100%;
         height: auto;
         border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
     #previewContent iframe {
@@ -371,24 +397,50 @@
         height: 60vh;
         border: none;
         border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
     #previewContent video {
         max-width: 100%;
         height: auto;
         border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
     .file-info {
-        background: #f8f9fa;
-        border-radius: 8px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
         padding: 2rem;
         margin: 1rem;
+        border: 1px solid #dee2e6;
     }
 
     .file-info .file-icon {
         font-size: 4rem;
         margin-bottom: 1rem;
+    }
+
+    .preview-options {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .preview-option {
+        flex: 1;
+        min-width: 200px;
+        max-width: 300px;
+    }
+
+    .document-preview-error {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem;
+        color: #856404;
     }
     </style>
 
@@ -462,10 +514,12 @@
         const previewTitle = document.getElementById('previewTitle');
         const previewContent = document.getElementById('previewContent');
         const downloadBtn = document.getElementById('downloadBtn');
+        const openNewTabBtn = document.getElementById('openNewTabBtn');
         
-        // Set title and download link
+        // Set title and links
         previewTitle.textContent = title;
         downloadBtn.href = `/instructor/materials/${materialId}/download`;
+        openNewTabBtn.href = fileUrl;
         
         // Show loading state
         previewContent.innerHTML = `
@@ -481,22 +535,33 @@
         
         // Generate preview content based on file type
         setTimeout(() => {
-            generatePreview(fileUrl, fileType, previewContent);
+            generatePreview(fileUrl, fileType, previewContent, title);
         }, 500);
     }
 
-    function generatePreview(fileUrl, fileType, container) {
+    function generatePreview(fileUrl, fileType, container, title) {
         const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
         const videoTypes = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'];
         const audioTypes = ['mp3', 'wav', 'ogg', 'aac'];
         const documentTypes = ['pdf'];
+        const officeTypes = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'];
         
         fileType = fileType.toLowerCase();
         
         if (imageTypes.includes(fileType)) {
             container.innerHTML = `
                 <div class="p-3">
-                    <img src="${fileUrl}" alt="Image preview" class="img-fluid" style="max-height: 60vh;">
+                    <img src="${fileUrl}" alt="Image preview" class="img-fluid" style="max-height: 60vh;" 
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div class="file-info text-center" style="display: none;">
+                        <i class="ph ph-image file-icon text-primary"></i>
+                        <h5>Image Preview Failed</h5>
+                        <p class="text-muted">Unable to load image preview.</p>
+                        <a href="${fileUrl}" target="_blank" class="btn btn-outline-primary">
+                            <i class="ph ph-arrow-square-out me-2"></i>
+                            Open in New Tab
+                        </a>
+                    </div>
                 </div>
             `;
         } else if (videoTypes.includes(fileType)) {
@@ -504,7 +569,15 @@
                 <div class="p-3">
                     <video controls class="w-100" style="max-height: 60vh;">
                         <source src="${fileUrl}" type="video/${fileType}">
-                        Your browser does not support the video tag.
+                        <div class="file-info text-center">
+                            <i class="ph ph-video file-icon text-primary"></i>
+                            <h5>Video Preview Not Supported</h5>
+                            <p class="text-muted">Your browser doesn't support this video format.</p>
+                            <a href="${fileUrl}" target="_blank" class="btn btn-outline-primary">
+                                <i class="ph ph-arrow-square-out me-2"></i>
+                                Open in New Tab
+                            </a>
+                        </div>
                     </video>
                 </div>
             `;
@@ -513,8 +586,9 @@
                 <div class="p-4">
                     <div class="file-info text-center">
                         <i class="ph ph-music-note file-icon text-primary"></i>
-                        <h5>Audio File</h5>
-                        <audio controls class="w-100 mt-3">
+                        <h5>${title}</h5>
+                        <p class="text-muted mb-3">Audio File - ${fileType.toUpperCase()}</p>
+                        <audio controls class="w-100 mt-3" style="max-width: 500px;">
                             <source src="${fileUrl}" type="audio/${fileType}">
                             Your browser does not support the audio tag.
                         </audio>
@@ -522,23 +596,88 @@
                 </div>
             `;
         } else if (documentTypes.includes(fileType)) {
+            // For PDFs, try multiple approaches
             container.innerHTML = `
                 <div class="p-2">
-                    <iframe src="${fileUrl}" style="width: 100%; height: 60vh; border: none;"></iframe>
+                    <div class="preview-options">
+                        <div class="preview-option">
+                            <h6 class="text-center mb-3">PDF Preview</h6>
+                            <iframe src="${fileUrl}#toolbar=0&navpanes=0&scrollbar=0" 
+                                    style="width: 100%; height: 60vh; border: none; border-radius: 8px;"
+                                    onerror="showPdfError()">
+                            </iframe>
+                        </div>
+                    </div>
+                    <div id="pdfError" class="document-preview-error text-center" style="display: none;">
+                        <i class="ph ph-warning-circle text-24 mb-2"></i>
+                        <h6>PDF Preview Not Available</h6>
+                        <p class="mb-3">Your browser settings may be blocking PDF preview.</p>
+                        <div class="d-flex gap-2 justify-content-center">
+                            <a href="${fileUrl}" target="_blank" class="btn btn-primary">
+                                <i class="ph ph-arrow-square-out me-2"></i>
+                                Open PDF in New Tab
+                            </a>
+                            <a href="https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}" target="_blank" class="btn btn-outline-primary">
+                                <i class="ph ph-google-logo me-2"></i>
+                                View with Google
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (officeTypes.includes(fileType)) {
+            // For Office documents, use Google Docs Viewer and Office Online
+            const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+            const officeOnlineUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
+            
+            container.innerHTML = `
+                <div class="p-3">
+                    <div class="file-info text-center">
+                        <i class="ph ${getOfficeIcon(fileType)} file-icon text-primary"></i>
+                        <h5>${title}</h5>
+                        <p class="text-muted mb-3">${fileType.toUpperCase()} Document</p>
+                        <div class="preview-options">
+                            <div class="preview-option">
+                                <h6>Google Docs Viewer</h6>
+                                <iframe src="${googleViewerUrl}" 
+                                        style="width: 100%; height: 50vh; border: none; border-radius: 8px;"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                </iframe>
+                                <div class="document-preview-error" style="display: none;">
+                                    <p>Google Viewer failed to load</p>
+                                </div>
+                            </div>
+                            <div class="preview-option">
+                                <h6>Office Online Viewer</h6>
+                                <iframe src="${officeOnlineUrl}" 
+                                        style="width: 100%; height: 50vh; border: none; border-radius: 8px;"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                </iframe>
+                                <div class="document-preview-error" style="display: none;">
+                                    <p>Office Online Viewer failed to load</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <a href="${fileUrl}" target="_blank" class="btn btn-primary me-2">
+                                <i class="ph ph-arrow-square-out me-2"></i>
+                                Open in New Tab
+                            </a>
+                            <a href="${googleViewerUrl}" target="_blank" class="btn btn-outline-primary">
+                                <i class="ph ph-google-logo me-2"></i>
+                                Google Viewer
+                            </a>
+                        </div>
+                    </div>
                 </div>
             `;
         } else {
-            // For other file types, show file info
+            // For other file types, show file info with multiple options
             const iconMap = {
-                'doc': 'ph-file-doc',
-                'docx': 'ph-file-doc',
-                'xls': 'ph-file-xls',
-                'xlsx': 'ph-file-xls',
-                'ppt': 'ph-file-ppt',
-                'pptx': 'ph-file-ppt',
                 'txt': 'ph-file-text',
                 'zip': 'ph-file-zip',
-                'rar': 'ph-file-zip'
+                'rar': 'ph-file-zip',
+                '7z': 'ph-file-zip'
             };
             
             const icon = iconMap[fileType] || 'ph-file';
@@ -547,17 +686,39 @@
                 <div class="p-4">
                     <div class="file-info text-center">
                         <i class="ph ${icon} file-icon text-primary"></i>
-                        <h5>File Preview Not Available</h5>
-                        <p class="text-muted">This file type cannot be previewed in the browser.</p>
-                        <p class="mb-3">File Type: <strong>${fileType.toUpperCase()}</strong></p>
-                        <a href="${fileUrl}" target="_blank" class="btn btn-outline-primary">
-                            <i class="ph ph-arrow-square-out me-2"></i>
-                            Open in New Tab
-                        </a>
+                        <h5>${title}</h5>
+                        <p class="text-muted">File Type: <strong>${fileType.toUpperCase()}</strong></p>
+                        <p class="mb-3">This file type cannot be previewed in the browser.</p>
+                        <div class="d-flex gap-2 justify-content-center flex-wrap">
+                            <a href="${fileUrl}" target="_blank" class="btn btn-primary">
+                                <i class="ph ph-arrow-square-out me-2"></i>
+                                Open in New Tab
+                            </a>
+                            <a href="${fileUrl}" download class="btn btn-outline-primary">
+                                <i class="ph ph-download me-2"></i>
+                                Download File
+                            </a>
+                        </div>
                     </div>
                 </div>
             `;
         }
+    }
+
+    function getOfficeIcon(fileType) {
+        const icons = {
+            'doc': 'ph-file-doc',
+            'docx': 'ph-file-doc',
+            'xls': 'ph-file-xls',
+            'xlsx': 'ph-file-xls',
+            'ppt': 'ph-file-ppt',
+            'pptx': 'ph-file-ppt'
+        };
+        return icons[fileType] || 'ph-file-doc';
+    }
+
+    function showPdfError() {
+        document.getElementById('pdfError').style.display = 'block';
     }
 
     // Handle successful operations

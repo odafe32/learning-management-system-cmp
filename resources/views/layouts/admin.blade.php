@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ $meta_title ?? config('app.name', 'Laravel') }}</title>
         <meta name="description" content="{{ $meta_desc ?? 'Default description' }}">
-        <meta name="author" content="Esse Mobility Dashboard">
+        <meta name="author" content="LMS">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         
         <!-- Open Graph Meta Tags -->

@@ -13,7 +13,11 @@ use App\Http\Requests\CourseRequest;
 use App\Http\Requests\MaterialRequest;
 use App\Models\Course;
 use App\Models\Material;
+use App\Http\Requests\AssignmentRequest;
+use App\Models\Assignment;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class InstructorController extends Controller
 {
@@ -107,7 +111,7 @@ class InstructorController extends Controller
         }
     }
 
-    // Course Management
+       // Course Management
     public function createCourse()
     {
         $viewData = [
@@ -124,74 +128,208 @@ class InstructorController extends Controller
 
     public function storeCourse(CourseRequest $request)
     {
+        // Start database transaction
+        DB::beginTransaction();
+        
         try {
-            $data = $request->validated();
-            $data['user_id'] = Auth::id();
-            
-            // Generate slug
-            $data['slug'] = Str::slug($data['title']);
-            
-            // Handle image upload
-            if ($request->hasFile('image')) {
-                $imagePath = $request->file('image')->store('courses', 'public');
-                $data['image'] = $imagePath;
+            // Log the incoming request data for debugging
+            Log::info('Course creation attempt', [
+                'user_id' => Auth::id(),
+                'request_data' => $request->except(['image']), // Exclude file from log
+                'has_image' => $request->hasFile('image')
+            ]);
+
+            // Validate that user is authenticated
+            if (!Auth::check()) {
+                throw new \Exception('User not authenticated');
             }
 
+            // Get validated data
+            $data = $request->validated();
+            
+            // Add user ID
+            $data['user_id'] = Auth::id();
+            
+            // Generate unique slug
+            $baseSlug = Str::slug($data['title']);
+            $slug = $baseSlug;
+            $counter = 1;
+            
+            while (Course::where('slug', $slug)->exists()) {
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+            }
+            $data['slug'] = $slug;
+            
+            // Handle image upload with better error handling
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                
+                // Validate image
+                if (!$image->isValid()) {
+                    throw new \Exception('Invalid image file uploaded');
+                }
+                
+                // Check file size (max 5MB)
+                if ($image->getSize() > 5 * 1024 * 1024) {
+                    throw new \Exception('Image file too large. Maximum size is 5MB');
+                }
+                
+                // Check file type
+                $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+                if (!in_array($image->getMimeType(), $allowedTypes)) {
+                    throw new \Exception('Invalid image type. Only JPEG, PNG, and GIF are allowed');
+                }
+                
+                try {
+                    // Create directory if it doesn't exist
+                    $directory = 'courses';
+                    if (!Storage::disk('public')->exists($directory)) {
+                        Storage::disk('public')->makeDirectory($directory);
+                    }
+                    
+                    // Generate unique filename
+                    $filename = time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
+                    $imagePath = $image->storeAs($directory, $filename, 'public');
+                    
+                    if (!$imagePath) {
+                        throw new \Exception('Failed to store image file');
+                    }
+                    
+                    $data['image'] = $imagePath;
+                    
+                    Log::info('Image uploaded successfully', ['path' => $imagePath]);
+                    
+                } catch (\Exception $e) {
+                    Log::error('Image upload failed', ['error' => $e->getMessage()]);
+                    throw new \Exception('Failed to upload image: ' . $e->getMessage());
+                }
+            }
+
+            // Validate required fields are present
+            $requiredFields = ['title', 'code', 'level', 'semester', 'credit_units', 'status'];
+            foreach ($requiredFields as $field) {
+                if (empty($data[$field])) {
+                    throw new \Exception("Required field '{$field}' is missing or empty");
+                }
+            }
+
+            // Check for duplicate course code for this instructor
+            $existingCourse = Course::where('code', $data['code'])
+                                  ->where('user_id', Auth::id())
+                                  ->first();
+            
+            if ($existingCourse) {
+                throw new \Exception('A course with this code already exists in your courses');
+            }
+
+            // Create the course
             $course = Course::create($data);
+            
+            if (!$course) {
+                throw new \Exception('Failed to create course record in database');
+            }
+
+            // Commit the transaction
+            DB::commit();
+            
+            Log::info('Course created successfully', [
+                'course_id' => $course->id,
+                'title' => $course->title,
+                'user_id' => Auth::id()
+            ]);
 
             return redirect()->route('instructor.courses.manage')
                 ->with('success', 'Course created successfully!');
 
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollback();
+            
+            Log::error('Course creation validation failed', [
+                'errors' => $e->errors(),
+                'user_id' => Auth::id()
+            ]);
+            
             return redirect()->route('instructor.courses.create')
-                ->with('error', 'Failed to create course. Please try again.')
+                ->withErrors($e->errors())
+                ->withInput();
+                
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            // Log the detailed error
+            Log::error('Course creation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+                'request_data' => $request->except(['image'])
+            ]);
+            
+            // Return more specific error message in development
+            $errorMessage = config('app.debug') 
+                ? 'Failed to create course: ' . $e->getMessage()
+                : 'Failed to create course. Please try again.';
+            
+            return redirect()->route('instructor.courses.create')
+                ->with('error', $errorMessage)
                 ->withInput();
         }
     }
 
     public function manageCourses(Request $request)
     {
-        $query = Course::byInstructor(Auth::id())->with('instructor');
+        try {
+            $query = Course::byInstructor(Auth::id())->with('instructor');
 
-        // Search functionality
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
+            // Search functionality
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                      ->orWhere('code', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
+
+            // Filter by status
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // Filter by level
+            if ($request->filled('level')) {
+                $query->where('level', $request->level);
+            }
+
+            // Filter by semester
+            if ($request->filled('semester')) {
+                $query->where('semester', $request->semester);
+            }
+
+            $courses = $query->latest()->paginate(10)->withQueryString();
+
+            $viewData = [
+                'meta_title' => 'Manage Courses | LMS',
+                'meta_desc'  => 'Manage your courses',
+                'meta_image' => url('assets/images/logo/logo.png'),
+                'courses' => $courses,
+                'levels' => Course::getLevels(),
+                'semesters' => Course::getSemesters(),
+                'statuses' => Course::getStatuses(),
+                'filters' => $request->only(['search', 'status', 'level', 'semester']),
+            ];
+
+            return view('instructor.courses', $viewData);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to load courses page', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+            
+            return redirect()->route('instructor.dashboard')
+                ->with('error', 'Failed to load courses. Please try again.');
         }
-
-        // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Filter by level
-        if ($request->filled('level')) {
-            $query->where('level', $request->level);
-        }
-
-        // Filter by semester
-        if ($request->filled('semester')) {
-            $query->where('semester', $request->semester);
-        }
-
-        $courses = $query->latest()->paginate(10)->withQueryString();
-
-        $viewData = [
-            'meta_title' => 'Manage Courses | LMS',
-            'meta_desc'  => 'Manage your courses',
-            'meta_image' => url('assets/images/logo/logo.png'),
-            'courses' => $courses,
-            'levels' => Course::getLevels(),
-            'semesters' => Course::getSemesters(),
-            'statuses' => Course::getStatuses(),
-            'filters' => $request->only(['search', 'status', 'level', 'semester']),
-        ];
-
-        return view('instructor.courses', $viewData);
     }
 
     public function editCourse(Course $course)
@@ -221,33 +359,80 @@ class InstructorController extends Controller
             abort(403, 'Unauthorized access to this course.');
         }
 
+        DB::beginTransaction();
+        
         try {
             $data = $request->validated();
             
             // Generate slug if title changed
             if ($data['title'] !== $course->title) {
-                $data['slug'] = Str::slug($data['title']);
+                $baseSlug = Str::slug($data['title']);
+                $slug = $baseSlug;
+                $counter = 1;
+                
+                while (Course::where('slug', $slug)->where('id', '!=', $course->id)->exists()) {
+                    $slug = $baseSlug . '-' . $counter;
+                    $counter++;
+                }
+                $data['slug'] = $slug;
             }
             
             // Handle image upload
             if ($request->hasFile('image')) {
-                // Delete old image if exists
-                if ($course->image && Storage::disk('public')->exists($course->image)) {
-                    Storage::disk('public')->delete($course->image);
+                $image = $request->file('image');
+                
+                // Validate image
+                if (!$image->isValid()) {
+                    throw new \Exception('Invalid image file uploaded');
                 }
                 
-                $imagePath = $request->file('image')->store('courses', 'public');
-                $data['image'] = $imagePath;
+                try {
+                    // Delete old image if exists
+                    if ($course->image && Storage::disk('public')->exists($course->image)) {
+                        Storage::disk('public')->delete($course->image);
+                    }
+                    
+                    $filename = time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
+                    $imagePath = $image->storeAs('courses', $filename, 'public');
+                    
+                    if (!$imagePath) {
+                        throw new \Exception('Failed to store image file');
+                    }
+                    
+                    $data['image'] = $imagePath;
+                    
+                } catch (\Exception $e) {
+                    throw new \Exception('Failed to upload image: ' . $e->getMessage());
+                }
             }
 
             $course->update($data);
+            
+            DB::commit();
+            
+            Log::info('Course updated successfully', [
+                'course_id' => $course->id,
+                'user_id' => Auth::id()
+            ]);
 
             return redirect()->route('instructor.courses.manage')
                 ->with('success', 'Course updated successfully!');
 
         } catch (\Exception $e) {
+            DB::rollback();
+            
+            Log::error('Course update failed', [
+                'error' => $e->getMessage(),
+                'course_id' => $course->id,
+                'user_id' => Auth::id()
+            ]);
+            
+            $errorMessage = config('app.debug') 
+                ? 'Failed to update course: ' . $e->getMessage()
+                : 'Failed to update course. Please try again.';
+            
             return redirect()->route('instructor.courses.edit', $course)
-                ->with('error', 'Failed to update course. Please try again.')
+                ->with('error', $errorMessage)
                 ->withInput();
         }
     }
@@ -259,23 +444,40 @@ class InstructorController extends Controller
             abort(403, 'Unauthorized access to this course.');
         }
 
+        DB::beginTransaction();
+        
         try {
             // Delete course image if exists
             if ($course->image && Storage::disk('public')->exists($course->image)) {
                 Storage::disk('public')->delete($course->image);
             }
 
+            $courseTitle = $course->title;
             $course->delete();
+            
+            DB::commit();
+            
+            Log::info('Course deleted successfully', [
+                'course_title' => $courseTitle,
+                'user_id' => Auth::id()
+            ]);
 
             return redirect()->route('instructor.courses.manage')
                 ->with('success', 'Course deleted successfully!');
 
         } catch (\Exception $e) {
+            DB::rollback();
+            
+            Log::error('Course deletion failed', [
+                'error' => $e->getMessage(),
+                'course_id' => $course->id,
+                'user_id' => Auth::id()
+            ]);
+            
             return redirect()->route('instructor.courses.manage')
                 ->with('error', 'Failed to delete course. Please try again.');
         }
     }
-
     // Material Management
     public function uploadMaterial()
     {
@@ -465,29 +667,267 @@ class InstructorController extends Controller
         return Storage::disk('public')->download($material->file_path, $material->title . '.' . $material->file_type);
     }
 
-    // Assignments
-    public function createAssignment()
-    {
-        $viewData = [
-            'meta_title' => 'Create Assignment | LMS',
-            'meta_desc'  => 'Create a new assignment',
-            'meta_image' => url('assets/images/logo/logo.png'),
-        ];
-
-        return view('instructor.create-assignments', $viewData);
+    public function serveMaterial(Material $material)
+{
+    // Ensure the material belongs to the authenticated instructor or is public
+    if ($material->user_id !== Auth::id() && $material->visibility !== 'public') {
+        abort(403, 'Unauthorized access to this material.');
     }
 
-    public function manageAssignments()
-    {
-        $viewData = [
-            'meta_title' => 'Manage Assignments | LMS',
-            'meta_desc'  => 'Manage your assignments',
-            'meta_image' => url('assets/images/logo/logo.png'),
-        ];
-
-        return view('instructor.assignments', $viewData);
+    if (!$material->file_path || !Storage::disk('public')->exists($material->file_path)) {
+        abort(404, 'File not found.');
     }
 
+    $filePath = Storage::disk('public')->path($material->file_path);
+    $mimeType = Storage::disk('public')->mimeType($material->file_path);
+    
+    // Set appropriate headers for file serving
+    $headers = [
+        'Content-Type' => $mimeType,
+        'Content-Disposition' => 'inline; filename="' . $material->title . '.' . $material->file_type . '"',
+        'Cache-Control' => 'public, max-age=3600',
+        'Access-Control-Allow-Origin' => '*',
+        'Access-Control-Allow-Methods' => 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers' => 'Content-Type, Authorization',
+    ];
+
+    return response()->file($filePath, $headers);
+}
+
+public function streamMaterial(Material $material)
+{
+    // Ensure the material belongs to the authenticated instructor or is public
+    if ($material->user_id !== Auth::id() && $material->visibility !== 'public') {
+        abort(403, 'Unauthorized access to this material.');
+    }
+
+    if (!$material->file_path || !Storage::disk('public')->exists($material->file_path)) {
+        abort(404, 'File not found.');
+    }
+
+    $filePath = Storage::disk('public')->path($material->file_path);
+    $mimeType = Storage::disk('public')->mimeType($material->file_path);
+    $fileSize = Storage::disk('public')->size($material->file_path);
+    
+    // Handle range requests for video/audio streaming
+    $headers = [
+        'Content-Type' => $mimeType,
+        'Accept-Ranges' => 'bytes',
+        'Content-Length' => $fileSize,
+        'Cache-Control' => 'public, max-age=3600',
+        'Access-Control-Allow-Origin' => '*',
+    ];
+
+    if (request()->hasHeader('Range')) {
+        return $this->handleRangeRequest($filePath, $fileSize, $mimeType);
+    }
+
+    return response()->file($filePath, $headers);
+}
+
+private function handleRangeRequest($filePath, $fileSize, $mimeType)
+{
+    $range = request()->header('Range');
+    $ranges = explode('=', $range)[1];
+    $parts = explode('-', $ranges);
+    
+    $start = intval($parts[0]);
+    $end = isset($parts[1]) && $parts[1] !== '' ? intval($parts[1]) : $fileSize - 1;
+    
+    $length = $end - $start + 1;
+    
+    $headers = [
+        'Content-Type' => $mimeType,
+        'Accept-Ranges' => 'bytes',
+        'Content-Length' => $length,
+        'Content-Range' => "bytes $start-$end/$fileSize",
+        'Cache-Control' => 'public, max-age=3600',
+        'Access-Control-Allow-Origin' => '*',
+    ];
+    
+    $stream = fopen($filePath, 'rb');
+    fseek($stream, $start);
+    $data = fread($stream, $length);
+    fclose($stream);
+    
+    return response($data, 206, $headers);
+}
+
+public function createAssignment()
+{
+    $courses = Course::byInstructor(Auth::id())->active()->get();
+    
+    $viewData = [
+        'meta_title' => 'Create Assignment | LMS',
+        'meta_desc'  => 'Create a new assignment',
+        'meta_image' => url('assets/images/logo/logo.png'),
+        'courses' => $courses,
+        'statuses' => Assignment::getStatuses(),
+    ];
+
+    return view('instructor.create-assignments', $viewData);
+}
+
+public function storeAssignment(AssignmentRequest $request)
+{
+    try {
+        $data = $request->validated();
+        $data['user_id'] = Auth::id();
+        
+        // Generate slug
+        $data['slug'] = Str::slug($data['title']);
+
+        $assignment = Assignment::create($data);
+
+        return redirect()->route('instructor.assignments.manage')
+            ->with('success', 'Assignment created successfully!');
+
+    } catch (\Exception $e) {
+        return redirect()->route('instructor.assignments.create')
+            ->with('error', 'Failed to create assignment. Please try again.')
+            ->withInput();
+    }
+}
+
+public function manageAssignments(Request $request)
+{
+    $query = Assignment::byInstructor(Auth::id())->with(['course']);
+
+    // Search functionality
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function($q) use ($search) {
+            $q->where('title', 'like', "%{$search}%")
+              ->orWhere('description', 'like', "%{$search}%")
+              ->orWhereHas('course', function($courseQuery) use ($search) {
+                  $courseQuery->where('title', 'like', "%{$search}%")
+                              ->orWhere('code', 'like', "%{$search}%");
+              });
+        });
+    }
+
+    // Filter by course
+    if ($request->filled('course_id')) {
+        $query->where('course_id', $request->course_id);
+    }
+
+    // Filter by status
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+
+    // Filter by deadline status
+    if ($request->filled('deadline_status')) {
+        if ($request->deadline_status === 'upcoming') {
+            $query->upcoming();
+        } elseif ($request->deadline_status === 'overdue') {
+            $query->overdue();
+        }
+    }
+
+    $assignments = $query->latest()->paginate(10)->withQueryString();
+    $courses = Course::byInstructor(Auth::id())->get();
+
+    $viewData = [
+        'meta_title' => 'Manage Assignments | LMS',
+        'meta_desc'  => 'Manage your assignments',
+        'meta_image' => url('assets/images/logo/logo.png'),
+        'assignments' => $assignments,
+        'courses' => $courses,
+        'statuses' => Assignment::getStatuses(),
+        'filters' => $request->only(['search', 'course_id', 'status', 'deadline_status']),
+    ];
+
+    return view('instructor.assignments', $viewData);
+}
+
+public function editAssignment(Assignment $assignment)
+{
+    // Ensure the assignment belongs to the authenticated instructor
+    if ($assignment->user_id !== Auth::id()) {
+        abort(403, 'Unauthorized access to this assignment.');
+    }
+
+    $courses = Course::byInstructor(Auth::id())->get();
+
+    $viewData = [
+        'meta_title' => 'Edit Assignment | LMS',
+        'meta_desc'  => 'Edit assignment information',
+        'meta_image' => url('assets/images/logo/logo.png'),
+        'assignment' => $assignment,
+        'courses' => $courses,
+        'statuses' => Assignment::getStatuses(),
+    ];
+
+    return view('instructor.edit-assignment', $viewData);
+}
+
+public function updateAssignment(AssignmentRequest $request, Assignment $assignment)
+{
+    // Ensure the assignment belongs to the authenticated instructor
+    if ($assignment->user_id !== Auth::id()) {
+        abort(403, 'Unauthorized access to this assignment.');
+    }
+
+    try {
+        $data = $request->validated();
+        
+        // Generate slug if title changed
+        if ($data['title'] !== $assignment->title) {
+            $data['slug'] = Str::slug($data['title']);
+        }
+
+        $assignment->update($data);
+
+        return redirect()->route('instructor.assignments.manage')
+            ->with('success', 'Assignment updated successfully!');
+
+    } catch (\Exception $e) {
+        return redirect()->route('instructor.assignments.edit', $assignment)
+            ->with('error', 'Failed to update assignment. Please try again.')
+            ->withInput();
+    }
+}
+
+public function deleteAssignment(Assignment $assignment)
+{
+    // Ensure the assignment belongs to the authenticated instructor
+    if ($assignment->user_id !== Auth::id()) {
+        abort(403, 'Unauthorized access to this assignment.');
+    }
+
+    try {
+        $assignment->delete();
+
+        return redirect()->route('instructor.assignments.manage')
+            ->with('success', 'Assignment deleted successfully!');
+
+    } catch (\Exception $e) {
+        return redirect()->route('instructor.assignments.manage')
+            ->with('error', 'Failed to delete assignment. Please try again.');
+    }
+}
+
+public function viewAssignment(Assignment $assignment)
+{
+    // Ensure the assignment belongs to the authenticated instructor
+    if ($assignment->user_id !== Auth::id()) {
+        abort(403, 'Unauthorized access to this assignment.');
+    }
+
+    $assignment->load(['course', 'submissions.student']);
+
+    $viewData = [
+        'meta_title' => $assignment->title . ' | LMS',
+        'meta_desc'  => 'View assignment details and submissions',
+        'meta_image' => url('assets/images/logo/logo.png'),
+        'assignment' => $assignment,
+    ];
+
+    return view('instructor.view-assignment', $viewData);
+}
+
+  
     // Submissions
     public function viewSubmissions()
     {
