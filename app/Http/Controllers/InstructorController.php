@@ -13,6 +13,7 @@ use App\Http\Requests\CourseRequest;
 use App\Http\Requests\MaterialRequest;
 use App\Models\Course;
 use App\Models\Material;
+use App\Models\Submission;
 use App\Http\Requests\AssignmentRequest;
 use App\Models\Assignment;
 use Illuminate\Support\Str;
@@ -527,52 +528,87 @@ class InstructorController extends Controller
         }
     }
 
-    public function viewMaterials(Request $request)
+ public function viewMaterials(Request $request)
     {
-        $query = Material::byInstructor(Auth::id())->with(['course']);
+        try {
+            $query = Material::byInstructor(Auth::id())->with(['course']);
 
-        // Search functionality
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhereHas('course', function($courseQuery) use ($search) {
-                      $courseQuery->where('title', 'like', "%{$search}%")
-                                  ->orWhere('code', 'like', "%{$search}%");
-                  });
-            });
+            // Search functionality
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%")
+                      ->orWhereHas('course', function($courseQuery) use ($search) {
+                          $courseQuery->where('title', 'like', "%{$search}%")
+                                      ->orWhere('code', 'like', "%{$search}%");
+                      });
+                });
+            }
+
+            // Filter by course
+            if ($request->filled('course_id')) {
+                $query->where('course_id', $request->course_id);
+            }
+
+            // Filter by visibility
+            if ($request->filled('visibility')) {
+                $query->where('visibility', $request->visibility);
+            }
+
+            // Filter by file type
+            if ($request->filled('file_type')) {
+                $query->where('file_type', $request->file_type);
+            }
+
+            $materials = $query->latest()->paginate(12)->withQueryString();
+            $courses = Course::byInstructor(Auth::id())->get();
+
+            // Debug: Log materials data
+            Log::info('Materials loaded for instructor', [
+                'instructor_id' => Auth::id(),
+                'materials_count' => $materials->count(),
+                'total_materials' => $materials->total(),
+                'filters' => $request->only(['search', 'course_id', 'visibility', 'file_type'])
+            ]);
+
+            // Debug: Check file accessibility for each material
+            foreach ($materials as $material) {
+                $fileExists = $material->file_path ? Storage::disk('public')->exists($material->file_path) : false;
+                $fileUrl = $material->file_url;
+                
+                Log::info('Material file check', [
+                    'material_id' => $material->id,
+                    'title' => $material->title,
+                    'file_path' => $material->file_path,
+                    'file_exists' => $fileExists,
+                    'file_url' => $fileUrl,
+                    'file_type' => $material->file_type
+                ]);
+            }
+
+            $viewData = [
+                'meta_title' => 'View Materials | LMS',
+                'meta_desc'  => 'View and manage lecture materials',
+                'meta_image' => url('assets/images/logo/logo.png'),
+                'materials' => $materials,
+                'courses' => $courses,
+                'visibilityOptions' => Material::getVisibilityOptions(),
+                'filters' => $request->only(['search', 'course_id', 'visibility', 'file_type']),
+            ];
+
+            return view('instructor.materials', $viewData);
+
+        } catch (\Exception $e) {
+            Log::error('Error loading materials', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'instructor_id' => Auth::id()
+            ]);
+
+            return redirect()->route('instructor.dashboard')
+                ->with('error', 'Failed to load materials. Please try again.');
         }
-
-        // Filter by course
-        if ($request->filled('course_id')) {
-            $query->where('course_id', $request->course_id);
-        }
-
-        // Filter by visibility
-        if ($request->filled('visibility')) {
-            $query->where('visibility', $request->visibility);
-        }
-
-        // Filter by file type
-        if ($request->filled('file_type')) {
-            $query->where('file_type', $request->file_type);
-        }
-
-        $materials = $query->latest()->paginate(12)->withQueryString();
-        $courses = Course::byInstructor(Auth::id())->get();
-
-        $viewData = [
-            'meta_title' => 'View Materials | LMS',
-            'meta_desc'  => 'View and manage lecture materials',
-            'meta_image' => url('assets/images/logo/logo.png'),
-            'materials' => $materials,
-            'courses' => $courses,
-            'visibilityOptions' => Material::getVisibilityOptions(),
-            'filters' => $request->only(['search', 'course_id', 'visibility', 'file_type']),
-        ];
-
-        return view('instructor.materials', $viewData);
     }
 
     public function editMaterial(Material $material)
@@ -655,103 +691,236 @@ class InstructorController extends Controller
 
     public function downloadMaterial(Material $material)
     {
-        // Ensure the material belongs to the authenticated instructor
-        if ($material->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized access to this material.');
+        try {
+            // Check authorization
+            if ($material->user_id !== Auth::id() && $material->visibility !== 'public') {
+                abort(403, 'Unauthorized access to this material.');
+            }
+
+            if (!$material->file_path || !Storage::disk('public')->exists($material->file_path)) {
+                abort(404, 'File not found.');
+            }
+
+            $filePath = Storage::disk('public')->path($material->file_path);
+            $fileName = $material->title . '.' . $material->file_type;
+
+            Log::info('Material download', [
+                'material_id' => $material->id,
+                'user_id' => Auth::id(),
+                'file_name' => $fileName
+            ]);
+
+            return response()->download($filePath, $fileName);
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading material', [
+                'material_id' => $material->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->back()->with('error', 'Failed to download file.');
+        }
+    }
+
+   public function serveMaterial(Material $material)
+    {
+        try {
+            Log::info('Serving material request', [
+                'material_id' => $material->id,
+                'title' => $material->title,
+                'file_path' => $material->file_path,
+                'user_id' => Auth::id(),
+                'material_owner' => $material->user_id,
+                'visibility' => $material->visibility
+            ]);
+
+            // Check authorization
+            if ($material->user_id !== Auth::id() && $material->visibility !== 'public') {
+                Log::warning('Unauthorized material access attempt', [
+                    'material_id' => $material->id,
+                    'user_id' => Auth::id(),
+                    'material_owner' => $material->user_id
+                ]);
+                abort(403, 'Unauthorized access to this material.');
+            }
+
+            // Check if file exists
+            if (!$material->file_path) {
+                Log::error('Material has no file path', ['material_id' => $material->id]);
+                abort(404, 'File path not found.');
+            }
+
+            if (!Storage::disk('public')->exists($material->file_path)) {
+                Log::error('Material file does not exist', [
+                    'material_id' => $material->id,
+                    'file_path' => $material->file_path,
+                    'full_path' => Storage::disk('public')->path($material->file_path)
+                ]);
+                abort(404, 'File not found on server.');
+            }
+
+            $filePath = Storage::disk('public')->path($material->file_path);
+            $mimeType = Storage::disk('public')->mimeType($material->file_path);
+            $fileSize = Storage::disk('public')->size($material->file_path);
+            
+            Log::info('File details', [
+                'material_id' => $material->id,
+                'file_path' => $filePath,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
+                'file_exists_on_disk' => file_exists($filePath)
+            ]);
+
+            // Set appropriate headers for file serving
+            $headers = [
+                'Content-Type' => $mimeType,
+                'Content-Length' => $fileSize,
+                'Content-Disposition' => 'inline; filename="' . $material->title . '.' . $material->file_type . '"',
+                'Cache-Control' => 'public, max-age=3600',
+                'Access-Control-Allow-Origin' => '*',
+                'Access-Control-Allow-Methods' => 'GET, HEAD, OPTIONS',
+                'Access-Control-Allow-Headers' => 'Content-Type, Authorization',
+                'X-Content-Type-Options' => 'nosniff',
+                'X-Frame-Options' => 'SAMEORIGIN'
+            ];
+
+            return response()->file($filePath, $headers);
+
+        } catch (\Exception $e) {
+            Log::error('Error serving material', [
+                'material_id' => $material->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            abort(500, 'Error serving file: ' . $e->getMessage());
+        }
+    }
+
+   public function streamMaterial(Material $material)
+    {
+        try {
+            // Check authorization
+            if ($material->user_id !== Auth::id() && $material->visibility !== 'public') {
+                abort(403, 'Unauthorized access to this material.');
+            }
+
+            if (!$material->file_path || !Storage::disk('public')->exists($material->file_path)) {
+                abort(404, 'File not found.');
+            }
+
+            $filePath = Storage::disk('public')->path($material->file_path);
+            $mimeType = Storage::disk('public')->mimeType($material->file_path);
+            $fileSize = Storage::disk('public')->size($material->file_path);
+            
+            // Handle range requests for video/audio streaming
+            $headers = [
+                'Content-Type' => $mimeType,
+                'Accept-Ranges' => 'bytes',
+                'Content-Length' => $fileSize,
+                'Cache-Control' => 'public, max-age=3600',
+                'Access-Control-Allow-Origin' => '*',
+            ];
+
+            if (request()->hasHeader('Range')) {
+                return $this->handleRangeRequest($filePath, $fileSize, $mimeType);
+            }
+
+            return response()->file($filePath, $headers);
+
+        } catch (\Exception $e) {
+            Log::error('Error streaming material', [
+                'material_id' => $material->id,
+                'error' => $e->getMessage()
+            ]);
+
+            abort(500, 'Error streaming file.');
+        }
+    }
+
+
+    private function handleRangeRequest($filePath, $fileSize, $mimeType)
+    {
+        $range = request()->header('Range');
+        $ranges = explode('=', $range)[1];
+        $parts = explode('-', $ranges);
+        
+        $start = intval($parts[0]);
+        $end = isset($parts[1]) && $parts[1] !== '' ? intval($parts[1]) : $fileSize - 1;
+        
+        $length = $end - $start + 1;
+        
+        $headers = [
+            'Content-Type' => $mimeType,
+            'Accept-Ranges' => 'bytes',
+            'Content-Length' => $length,
+            'Content-Range' => "bytes $start-$end/$fileSize",
+            'Cache-Control' => 'public, max-age=3600',
+            'Access-Control-Allow-Origin' => '*',
+        ];
+        
+        $stream = fopen($filePath, 'rb');
+        fseek($stream, $start);
+        $data = fread($stream, $length);
+        fclose($stream);
+        
+        return response($data, 206, $headers);
+    }
+  // Debug endpoint to check material details
+    public function debugMaterial(Material $material)
+    {
+        if (!config('app.debug')) {
+            abort(404);
         }
 
-        if (!$material->file_path || !Storage::disk('public')->exists($material->file_path)) {
-            abort(404, 'File not found.');
+        $fileExists = $material->file_path ? Storage::disk('public')->exists($material->file_path) : false;
+        $filePath = $material->file_path ? Storage::disk('public')->path($material->file_path) : null;
+        $fileUrl = $material->file_url;
+
+        $debug = [
+            'material' => [
+                'id' => $material->id,
+                'title' => $material->title,
+                'file_path' => $material->file_path,
+                'file_type' => $material->file_type,
+                'file_size' => $material->file_size,
+                'visibility' => $material->visibility,
+                'user_id' => $material->user_id,
+                'course_id' => $material->course_id,
+            ],
+            'file_info' => [
+                'file_exists_in_storage' => $fileExists,
+                'file_exists_on_disk' => $filePath ? file_exists($filePath) : false,
+                'full_file_path' => $filePath,
+                'file_url' => $fileUrl,
+                'storage_disk_path' => Storage::disk('public')->path(''),
+                'public_path' => public_path('storage'),
+                'storage_link_exists' => is_link(public_path('storage')),
+            ],
+            'auth' => [
+                'user_id' => Auth::id(),
+                'can_access' => $material->user_id === Auth::id() || $material->visibility === 'public',
+            ],
+            'routes' => [
+                'serve_url' => route('instructor.materials.serve', $material),
+                'download_url' => route('instructor.materials.download', $material),
+            ]
+        ];
+
+        if ($fileExists && $filePath) {
+            try {
+                $debug['file_details'] = [
+                    'mime_type' => Storage::disk('public')->mimeType($material->file_path),
+                    'size_bytes' => Storage::disk('public')->size($material->file_path),
+                    'last_modified' => Storage::disk('public')->lastModified($material->file_path),
+                ];
+            } catch (\Exception $e) {
+                $debug['file_details_error'] = $e->getMessage();
+            }
         }
 
-        return Storage::disk('public')->download($material->file_path, $material->title . '.' . $material->file_type);
+        return response()->json($debug, 200, [], JSON_PRETTY_PRINT);
     }
-
-    public function serveMaterial(Material $material)
-{
-    // Ensure the material belongs to the authenticated instructor or is public
-    if ($material->user_id !== Auth::id() && $material->visibility !== 'public') {
-        abort(403, 'Unauthorized access to this material.');
-    }
-
-    if (!$material->file_path || !Storage::disk('public')->exists($material->file_path)) {
-        abort(404, 'File not found.');
-    }
-
-    $filePath = Storage::disk('public')->path($material->file_path);
-    $mimeType = Storage::disk('public')->mimeType($material->file_path);
-    
-    // Set appropriate headers for file serving
-    $headers = [
-        'Content-Type' => $mimeType,
-        'Content-Disposition' => 'inline; filename="' . $material->title . '.' . $material->file_type . '"',
-        'Cache-Control' => 'public, max-age=3600',
-        'Access-Control-Allow-Origin' => '*',
-        'Access-Control-Allow-Methods' => 'GET, HEAD, OPTIONS',
-        'Access-Control-Allow-Headers' => 'Content-Type, Authorization',
-    ];
-
-    return response()->file($filePath, $headers);
-}
-
-public function streamMaterial(Material $material)
-{
-    // Ensure the material belongs to the authenticated instructor or is public
-    if ($material->user_id !== Auth::id() && $material->visibility !== 'public') {
-        abort(403, 'Unauthorized access to this material.');
-    }
-
-    if (!$material->file_path || !Storage::disk('public')->exists($material->file_path)) {
-        abort(404, 'File not found.');
-    }
-
-    $filePath = Storage::disk('public')->path($material->file_path);
-    $mimeType = Storage::disk('public')->mimeType($material->file_path);
-    $fileSize = Storage::disk('public')->size($material->file_path);
-    
-    // Handle range requests for video/audio streaming
-    $headers = [
-        'Content-Type' => $mimeType,
-        'Accept-Ranges' => 'bytes',
-        'Content-Length' => $fileSize,
-        'Cache-Control' => 'public, max-age=3600',
-        'Access-Control-Allow-Origin' => '*',
-    ];
-
-    if (request()->hasHeader('Range')) {
-        return $this->handleRangeRequest($filePath, $fileSize, $mimeType);
-    }
-
-    return response()->file($filePath, $headers);
-}
-
-private function handleRangeRequest($filePath, $fileSize, $mimeType)
-{
-    $range = request()->header('Range');
-    $ranges = explode('=', $range)[1];
-    $parts = explode('-', $ranges);
-    
-    $start = intval($parts[0]);
-    $end = isset($parts[1]) && $parts[1] !== '' ? intval($parts[1]) : $fileSize - 1;
-    
-    $length = $end - $start + 1;
-    
-    $headers = [
-        'Content-Type' => $mimeType,
-        'Accept-Ranges' => 'bytes',
-        'Content-Length' => $length,
-        'Content-Range' => "bytes $start-$end/$fileSize",
-        'Cache-Control' => 'public, max-age=3600',
-        'Access-Control-Allow-Origin' => '*',
-    ];
-    
-    $stream = fopen($filePath, 'rb');
-    fseek($stream, $start);
-    $data = fread($stream, $length);
-    fclose($stream);
-    
-    return response($data, 206, $headers);
-}
 
 public function createAssignment()
 {
@@ -926,30 +1095,196 @@ public function viewAssignment(Assignment $assignment)
 
     return view('instructor.view-assignment', $viewData);
 }
+// Add these methods to your InstructorController.php
 
-  
-    // Submissions
-    public function viewSubmissions()
-    {
-        $viewData = [
-            'meta_title' => 'View Submissions | LMS',
-            'meta_desc'  => 'View student submissions',
-            'meta_image' => url('assets/images/logo/logo.png'),
-        ];
+// Submissions
+public function viewSubmissions(Request $request)
+{
+    $query = Submission::with(['assignment.course', 'student'])
+        ->whereHas('assignment', function($q) {
+            $q->where('user_id', Auth::id());
+        });
 
-        return view('instructor.submissions', $viewData);
+    // Search functionality
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function($q) use ($search) {
+            $q->whereHas('student', function($studentQuery) use ($search) {
+                $studentQuery->where('name', 'like', "%{$search}%")
+                           ->orWhere('matric_or_staff_id', 'like', "%{$search}%");
+            })->orWhereHas('assignment', function($assignmentQuery) use ($search) {
+                $assignmentQuery->where('title', 'like', "%{$search}%");
+            });
+        });
     }
 
-    public function gradeAssignments()
-    {
-        $viewData = [
-            'meta_title' => 'Grade Assignments | LMS',
-            'meta_desc'  => 'Grade student assignments',
-            'meta_image' => url('assets/images/logo/logo.png'),
-        ];
-
-        return view('instructor.grade-assignments', $viewData);
+    // Filter by assignment
+    if ($request->filled('assignment_id')) {
+        $query->where('assignment_id', $request->assignment_id);
     }
+
+    // Filter by status
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+
+    // Filter by course
+    if ($request->filled('course_id')) {
+        $query->whereHas('assignment', function($q) use ($request) {
+            $q->where('course_id', $request->course_id);
+        });
+    }
+
+    // Filter by submission date
+    if ($request->filled('submission_date')) {
+        $date = $request->submission_date;
+        $query->whereDate('submitted_at', $date);
+    }
+
+    $submissions = $query->latest('submitted_at')->paginate(15)->withQueryString();
+
+    // Get filter options
+    $assignments = Assignment::where('user_id', Auth::id())
+        ->with('course')
+        ->orderBy('title')
+        ->get();
+
+    $courses = Course::where('user_id', Auth::id())
+        ->orderBy('title')
+        ->get();
+
+    $viewData = [
+        'meta_title' => 'View Submissions | LMS',
+        'meta_desc'  => 'View student submissions',
+        'meta_image' => url('assets/images/logo/logo.png'),
+        'submissions' => $submissions,
+        'assignments' => $assignments,
+        'courses' => $courses,
+        'statuses' => Submission::getStatuses(),
+        'filters' => $request->only(['search', 'assignment_id', 'status', 'course_id', 'submission_date']),
+    ];
+
+    return view('instructor.submissions', $viewData);
+}
+
+public function gradeAssignments(Request $request)
+{
+    $query = Submission::with(['assignment.course', 'student'])
+        ->whereHas('assignment', function($q) {
+            $q->where('user_id', Auth::id());
+        })
+        ->whereIn('status', ['submitted', 'pending']);
+
+    // Search functionality
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function($q) use ($search) {
+            $q->whereHas('student', function($studentQuery) use ($search) {
+                $studentQuery->where('name', 'like', "%{$search}%")
+                           ->orWhere('matric_or_staff_id', 'like', "%{$search}%");
+            })->orWhereHas('assignment', function($assignmentQuery) use ($search) {
+                $assignmentQuery->where('title', 'like', "%{$search}%");
+            });
+        });
+    }
+
+    // Filter by assignment
+    if ($request->filled('assignment_id')) {
+        $query->where('assignment_id', $request->assignment_id);
+    }
+
+    // Filter by course
+    if ($request->filled('course_id')) {
+        $query->whereHas('assignment', function($q) use ($request) {
+            $q->where('course_id', $request->course_id);
+        });
+    }
+
+    // Sort by priority (overdue first, then by submission date)
+    $query->join('assignments', 'submissions.assignment_id', '=', 'assignments.id')
+          ->orderByRaw("
+              CASE 
+                  WHEN assignments.deadline < NOW() THEN 1 
+                  ELSE 2 
+              END,
+              submissions.submitted_at ASC
+          ")
+          ->select('submissions.*');
+
+    $submissions = $query->paginate(15)->withQueryString();
+
+    // Get filter options
+    $assignments = Assignment::where('user_id', Auth::id())
+        ->with('course')
+        ->whereHas('submissions', function($q) {
+            $q->whereIn('status', ['submitted', 'pending']);
+        })
+        ->orderBy('title')
+        ->get();
+
+    $courses = Course::where('user_id', Auth::id())
+        ->orderBy('title')
+        ->get();
+
+    $viewData = [
+        'meta_title' => 'Grade Assignments | LMS',
+        'meta_desc'  => 'Grade student assignments',
+        'meta_image' => url('assets/images/logo/logo.png'),
+        'submissions' => $submissions,
+        'assignments' => $assignments,
+        'courses' => $courses,
+        'filters' => $request->only(['search', 'assignment_id', 'course_id']),
+    ];
+
+    return view('instructor.grade-assignments', $viewData);
+}
+
+public function gradeSubmission(Request $request, Submission $submission)
+{
+    // Ensure the submission belongs to the instructor's assignment
+    if ($submission->assignment->user_id !== Auth::id()) {
+        abort(403, 'Unauthorized access to this submission.');
+    }
+
+    $request->validate([
+        'grade' => 'required|numeric|min:0|max:100',
+        'feedback' => 'nullable|string|max:2000',
+    ]);
+
+    $submission->update([
+        'grade' => $request->grade,
+        'feedback' => $request->feedback,
+        'status' => 'graded',
+        'graded_at' => now(),
+    ]);
+
+    return redirect()->back()->with('success', 'Submission graded successfully!');
+}
+
+// Add this method to fix the storeGrade error
+public function storeGrade(Request $request, Submission $submission)
+{
+    return $this->gradeSubmission($request, $submission);
+}
+
+public function viewSubmissionDetail(Submission $submission)
+{
+    // Ensure the submission belongs to the instructor's assignment
+    if ($submission->assignment->user_id !== Auth::id()) {
+        abort(403, 'Unauthorized access to this submission.');
+    }
+
+    $submission->load(['assignment.course', 'student']);
+
+    $viewData = [
+        'meta_title' => 'Submission Details | LMS',
+        'meta_desc'  => 'View submission details',
+        'meta_image' => url('assets/images/logo/logo.png'),
+        'submission' => $submission,
+    ];
+
+    return view('instructor.submission-detail', $viewData);
+}
 
     // Students
     public function viewEnrolledStudents()

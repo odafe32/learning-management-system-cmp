@@ -98,8 +98,33 @@ class Material extends Model
     // Accessors & Mutators
     public function getFileUrlAttribute()
     {
-        if ($this->file_path) {
+        if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
+            // Use the serve route instead of direct storage URL
+            return route('instructor.materials.serve', $this->id);
+        }
+        return null;
+    }
+
+    public function getDirectFileUrlAttribute()
+    {
+        if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
             return Storage::disk('public')->url($this->file_path);
+        }
+        return null;
+    }
+
+    public function getStreamUrlAttribute()
+    {
+        if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
+            return route('instructor.materials.stream', $this->id);
+        }
+        return null;
+    }
+
+    public function getDownloadUrlAttribute()
+    {
+        if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
+            return route('instructor.materials.download', $this->id);
         }
         return null;
     }
@@ -145,6 +170,11 @@ class Material extends Model
         ];
 
         return $icons[$extension] ?? 'ph-file';
+    }
+
+    public function getFileExistsAttribute()
+    {
+        return $this->file_path && Storage::disk('public')->exists($this->file_path);
     }
 
     // Static methods

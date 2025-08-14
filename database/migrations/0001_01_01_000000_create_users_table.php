@@ -18,8 +18,8 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
 
-            // Role-based access
-            $table->enum('role', ['student', 'lecturer', 'admin']);
+            // Role-based access - Added 'instructor' to the enum
+            $table->enum('role', ['student', 'lecturer', 'instructor', 'admin']);
 
             // Profile Info
             $table->string('phone')->nullable();

@@ -5,11 +5,11 @@
 >
 <div class="dashboard-main-body">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-24">
-        <h6 class="fw-semibold mb-0">Create Assignment</h6>
+        <h6 class="fw-semibold mb-0">Edit Assignment</h6>
         <ul class="d-flex align-items-center gap-2">
             <li class="fw-medium">
                 <a href="{{ route('instructor.dashboard') }}" class="d-flex align-items-center gap-1 hover-text-primary">
-                    <iconify-icon icon="solar:home-smile-angle-outline" class="icon text-lg"></iconify-icon>
+                    <i class="ph ph-house text-lg"></i>
                     Dashboard
                 </a>
             </li>
@@ -20,18 +20,28 @@
                 </a>
             </li>
             <li>-</li>
-            <li class="fw-medium">Create Assignment</li>
+            <li class="fw-medium">Edit Assignment</li>
         </ul>
     </div>
 
     <div class="card h-100 p-0 radius-12">
         <div class="card-header border-bottom bg-base py-16 px-24">
-            <h6 class="text-lg fw-semibold mb-0">Create New Assignment</h6>
+            <div class="d-flex align-items-center justify-content-between">
+                <h6 class="text-lg fw-semibold mb-0">Edit Assignment: {{ $assignment->title }}</h6>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-{{ $assignment->status_color }}-50 text-{{ $assignment->status_color }}-600 px-12 py-6 rounded-4">
+                        {{ $assignment->status_label }}
+                    </span>
+                    <span class="text-sm text-secondary-light">
+                        Created {{ $assignment->created_at->diffForHumans() }}
+                    </span>
+                </div>
+            </div>
         </div>
         <div class="card-body p-24">
             @if(session('success'))
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <iconify-icon icon="solar:check-circle-outline" class="icon text-lg"></iconify-icon>
+                    <i class="ph ph-check-circle text-lg"></i>
                     {{ session('success') }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
@@ -39,14 +49,15 @@
 
             @if(session('error'))
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <iconify-icon icon="solar:danger-circle-outline" class="icon text-lg"></iconify-icon>
+                    <i class="ph ph-warning-circle text-lg"></i>
                     {{ session('error') }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             @endif
 
-            <form action="{{ route('instructor.assignments.store') }}" method="POST" id="assignmentForm">
+            <form action="{{ route('instructor.assignments.update', $assignment) }}" method="POST" id="editAssignmentForm">
                 @csrf
+                @method('PUT')
                 
                 <div class="row">
                     <div class="col-lg-8">
@@ -59,7 +70,7 @@
                                    class="form-control radius-8 @error('title') is-invalid @enderror" 
                                    id="title" 
                                    name="title" 
-                                   value="{{ old('title') }}" 
+                                   value="{{ old('title', $assignment->title) }}" 
                                    placeholder="Enter assignment title"
                                    required>
                             @error('title')
@@ -78,7 +89,8 @@
                                     required>
                                 <option value="">Select Course</option>
                                 @foreach($courses as $course)
-                                    <option value="{{ $course->id }}" {{ old('course_id') == $course->id ? 'selected' : '' }}>
+                                    <option value="{{ $course->id }}" 
+                                            {{ old('course_id', $assignment->course_id) == $course->id ? 'selected' : '' }}>
                                         {{ $course->code }} - {{ $course->title }}
                                     </option>
                                 @endforeach
@@ -97,7 +109,7 @@
                                       id="description" 
                                       name="description" 
                                       rows="4" 
-                                      placeholder="Enter assignment description">{{ old('description') }}</textarea>
+                                      placeholder="Enter assignment description">{{ old('description', $assignment->description) }}</textarea>
                             @error('description')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -140,11 +152,11 @@
 
                                     <div class="d-flex align-items-center gap-2 ms-auto">
                                         <button type="button" class="btn btn-sm btn-outline-secondary" id="fullscreen-btn">
-                                            <iconify-icon icon="solar:full-screen-outline"></iconify-icon>
+                                            <i class="ph ph-arrows-out"></i>
                                             Fullscreen
                                         </button>
                                         <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-code-btn">
-                                            <iconify-icon icon="solar:trash-bin-minimalistic-outline"></iconify-icon>
+                                            <i class="ph ph-trash"></i>
                                             Clear
                                         </button>
                                     </div>
@@ -159,13 +171,7 @@
                                 </div>
                                 
                                 <!-- Hidden textarea to store the code for form submission -->
-                                <textarea name="code_sample" id="code_sample" style="display: none;">{{ old('code_sample', '// Enter your starter code or template here
-// This will be provided to students as a starting point
-
-function example() {
-    // Your code here
-    console.log("Hello, World!");
-}') }}</textarea>
+                                <textarea name="code_sample" id="code_sample" style="display: none;">{{ old('code_sample', $assignment->code_sample) }}</textarea>
                                 
                                 @error('code_sample')
                                     <div class="invalid-feedback d-block">{{ $message }}</div>
@@ -182,6 +188,34 @@ function example() {
                     </div>
 
                     <div class="col-lg-4">
+                        <!-- Assignment Info Card -->
+                        <div class="card border border-info-200 radius-8 mb-20">
+                            <div class="card-header bg-info-50 py-12 px-16">
+                                <h6 class="text-md fw-semibold mb-0 text-info-600">Assignment Info</h6>
+                            </div>
+                            <div class="card-body p-16">
+                                <div class="mb-12">
+                                    <label class="text-sm fw-medium text-secondary-light">Assignment ID</label>
+                                    <div class="text-sm font-monospace">{{ $assignment->id }}</div>
+                                </div>
+                                <div class="mb-12">
+                                    <label class="text-sm fw-medium text-secondary-light">Current Course</label>
+                                    <div class="text-sm fw-semibold">{{ $assignment->course->code }} - {{ $assignment->course->title }}</div>
+                                </div>
+                                <div class="mb-12">
+                                    <label class="text-sm fw-medium text-secondary-light">Submissions</label>
+                                    <div class="text-sm">
+                                        <span class="fw-semibold">{{ $assignment->getSubmissionsCount() }}</span> total,
+                                        <span class="text-warning">{{ $assignment->getPendingSubmissionsCount() }}</span> pending
+                                    </div>
+                                </div>
+                                <div class="mb-0">
+                                    <label class="text-sm fw-medium text-secondary-light">Last Updated</label>
+                                    <div class="text-sm">{{ $assignment->updated_at->format('M d, Y \a\t g:i A') }}</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Status -->
                         <div class="mb-20">
                             <label for="status" class="form-label fw-semibold text-primary-light text-sm mb-8">
@@ -192,7 +226,8 @@ function example() {
                                     name="status" 
                                     required>
                                 @foreach($statuses as $key => $status)
-                                    <option value="{{ $key }}" {{ old('status', 'draft') == $key ? 'selected' : '' }}>
+                                    <option value="{{ $key }}" 
+                                            {{ old('status', $assignment->status) == $key ? 'selected' : '' }}>
                                         {{ $status }}
                                     </option>
                                 @endforeach
@@ -200,6 +235,13 @@ function example() {
                             @error('status')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+                            <small class="text-muted mt-1">
+                                @if($assignment->getSubmissionsCount() > 0)
+                                    <i class="ph ph-warning text-warning"></i>
+                                    This assignment has {{ $assignment->getSubmissionsCount() }} submission(s). 
+                                    Changing status may affect student access.
+                                @endif
+                            </small>
                         </div>
 
                         <!-- Deadline -->
@@ -211,36 +253,41 @@ function example() {
                                    class="form-control radius-8 @error('deadline') is-invalid @enderror" 
                                    id="deadline" 
                                    name="deadline" 
-                                   value="{{ old('deadline') }}" 
-                                   min="{{ now()->format('Y-m-d\TH:i') }}"
+                                   value="{{ old('deadline', $assignment->deadline->format('Y-m-d\TH:i')) }}" 
                                    required>
                             @error('deadline')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+                            <small class="text-muted mt-1">
+                                Current deadline: {{ $assignment->getFormattedDeadline() }}
+                                @if($assignment->isOverdue())
+                                    <span class="text-danger">(Overdue)</span>
+                                @endif
+                            </small>
                         </div>
 
-                        <!-- Assignment Info Card -->
+                        <!-- Assignment Guidelines -->
                         <div class="card border border-gray-200 radius-8 mb-20">
                             <div class="card-header bg-primary-50 py-12 px-16">
-                                <h6 class="text-md fw-semibold mb-0 text-primary-600">Assignment Guidelines</h6>
+                                <h6 class="text-md fw-semibold mb-0 text-primary-600">Update Guidelines</h6>
                             </div>
                             <div class="card-body p-16">
                                 <ul class="list-unstyled mb-0">
                                     <li class="d-flex align-items-start gap-2 mb-8">
-                                        <iconify-icon icon="solar:check-circle-outline" class="icon text-success-600 mt-1"></iconify-icon>
-                                        <span class="text-sm">Choose an appropriate deadline</span>
+                                        <i class="ph ph-check-circle text-success-600 mt-1"></i>
+                                        <span class="text-sm">Review all changes carefully</span>
                                     </li>
                                     <li class="d-flex align-items-start gap-2 mb-8">
-                                        <iconify-icon icon="solar:check-circle-outline" class="icon text-success-600 mt-1"></iconify-icon>
-                                        <span class="text-sm">Provide clear instructions</span>
+                                        <i class="ph ph-check-circle text-success-600 mt-1"></i>
+                                        <span class="text-sm">Consider existing submissions</span>
                                     </li>
                                     <li class="d-flex align-items-start gap-2 mb-8">
-                                        <iconify-icon icon="solar:check-circle-outline" class="icon text-success-600 mt-1"></iconify-icon>
-                                        <span class="text-sm">Include starter code if needed</span>
+                                        <i class="ph ph-check-circle text-success-600 mt-1"></i>
+                                        <span class="text-sm">Notify students of major changes</span>
                                     </li>
                                     <li class="d-flex align-items-start gap-2">
-                                        <iconify-icon icon="solar:check-circle-outline" class="icon text-success-600 mt-1"></iconify-icon>
-                                        <span class="text-sm">Save as draft to review later</span>
+                                        <i class="ph ph-check-circle text-success-600 mt-1"></i>
+                                        <span class="text-sm">Test code samples before saving</span>
                                     </li>
                                 </ul>
                             </div>
@@ -266,21 +313,27 @@ function example() {
                 </div>
 
                 <!-- Form Actions -->
-                <div class="d-flex align-items-center justify-content-end gap-3 mt-24">
-                    <a href="{{ route('instructor.assignments.manage') }}" 
-                       class="btn btn-gray border text-secondary-light fw-semibold radius-8 px-20 py-11">
-                        Cancel
-                    </a>
-                    <button type="submit" name="action" value="draft" 
-                            class="btn btn-warning fw-semibold radius-8 px-20 py-11">
-                        <iconify-icon icon="solar:document-add-outline" class="icon text-lg"></iconify-icon>
-                        Save as Draft
-                    </button>
-                    <button type="submit" name="action" value="active" 
-                            class="btn btn-primary fw-semibold radius-8 px-20 py-11">
-                        <iconify-icon icon="solar:check-circle-outline" class="icon text-lg"></iconify-icon>
-                        Create Assignment
-                    </button>
+                <div class="d-flex align-items-center justify-content-between mt-24">
+                    <div class="d-flex align-items-center gap-3">
+                        <a href="{{ route('instructor.assignments.manage') }}" 
+                           class="btn btn-gray border text-secondary-light fw-semibold radius-8 px-20 py-11">
+                            <i class="ph ph-arrow-left text-lg"></i>
+                            Back to Assignments
+                        </a>
+                      
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <button type="submit" name="action" value="draft" 
+                                class="btn btn-warning fw-semibold radius-8 px-20 py-11">
+                            <i class="ph ph-floppy-disk text-lg"></i>
+                            Save as Draft
+                        </button>
+                        <button type="submit" name="action" value="update" 
+                                class="btn btn-primary fw-semibold radius-8 px-20 py-11">
+                            <i class="ph ph-check-circle text-lg"></i>
+                            Update Assignment
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -294,13 +347,42 @@ function example() {
             <div class="modal-header">
                 <h5 class="modal-title">Code Editor - Fullscreen</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
+            </div>
             <div class="modal-body p-0">
                 <div id="fullscreen-editor" style="height: calc(100vh - 120px);"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary" id="save-fullscreen">Save & Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unsaved Changes Warning Modal -->
+<div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Unsaved Changes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <i class="ph ph-warning-circle text-6xl text-warning-600 mb-3"></i>
+                    <h6 class="text-lg fw-semibold mb-2">You have unsaved changes</h6>
+                    <p class="text-secondary-light mb-0">
+                        Are you sure you want to leave this page? Your changes will be lost.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-outline-gray radius-8" data-bs-dismiss="modal">
+                    Stay on Page
+                </button>
+                <button type="button" class="btn btn-danger radius-8" id="confirmLeave">
+                    Leave Without Saving
+                </button>
             </div>
         </div>
     </div>
@@ -341,18 +423,79 @@ function example() {
     min-height: 100%;
 }
 
-.code-editor-toolbar {
-    background: #f8f9fa;
-    border: 1px solid #ddd;
-    border-bottom: none;
-    border-radius: 8px 8px 0 0;
-    padding: 8px 12px;
-    font-size: 12px;
+.form-floating-custom {
+    position: relative;
 }
 
-.editor-with-toolbar .CodeMirror {
-    border-top: none;
-    border-radius: 0 0 8px 8px;
+.form-floating-custom .form-control {
+    padding-top: 1.625rem;
+    padding-bottom: 0.625rem;
+}
+
+.form-floating-custom .form-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    padding: 1rem 0.75rem;
+    pointer-events: none;
+    border: 1px solid transparent;
+    transform-origin: 0 0;
+    transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
+}
+
+.has-changes {
+    border-left: 4px solid #ffc107;
+    background-color: #fff8e1;
+}
+
+.change-indicator {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    background-color: #ffc107;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.submission-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.deadline-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.deadline-status.overdue {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.deadline-status.due-soon {
+    background-color: #fff3e0;
+    color: #ef6c00;
+}
+
+.deadline-status.normal {
+    background-color: #e8f5e8;
+    color: #2e7d32;
 }
 </style>
 
@@ -381,6 +524,8 @@ function example() {
 document.addEventListener('DOMContentLoaded', function() {
     let editor = null;
     let fullscreenEditor = null;
+    let hasUnsavedChanges = false;
+    let originalFormData = {};
     
     // Language mode mapping
     const languageModes = {
@@ -431,14 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Set initial content
-        const initialContent = textarea.value || `// Enter your starter code or template here
-// This will be provided to students as a starting point
-
-function example() {
-    // Your code here
-    console.log("Hello, World!");
-}`;
-        
+        const initialContent = textarea.value || '';
         editor.setValue(initialContent);
         
         // Auto-resize
@@ -450,6 +588,59 @@ function example() {
     // Initialize editor
     editor = initializeEditor();
 
+    // Store original form data
+    function storeOriginalData() {
+        const form = document.getElementById('editAssignmentForm');
+        const formData = new FormData(form);
+        originalFormData = {
+            title: formData.get('title'),
+            course_id: formData.get('course_id'),
+            description: formData.get('description'),
+            code_sample: editor.getValue(),
+            deadline: formData.get('deadline'),
+            status: formData.get('status')
+        };
+    }
+
+    // Check if form has changes
+    function checkForChanges() {
+        const form = document.getElementById('editAssignmentForm');
+        const formData = new FormData(form);
+        const currentData = {
+            title: formData.get('title'),
+            course_id: formData.get('course_id'),
+            description: formData.get('description'),
+            code_sample: editor.getValue(),
+            deadline: formData.get('deadline'),
+            status: formData.get('status')
+        };
+
+        hasUnsavedChanges = JSON.stringify(originalFormData) !== JSON.stringify(currentData);
+        
+        // Update UI to show changes
+        const card = document.querySelector('.card');
+        if (hasUnsavedChanges) {
+            card.classList.add('has-changes');
+            if (!document.querySelector('.change-indicator')) {
+                const indicator = document.createElement('div');
+                indicator.className = 'change-indicator';
+                indicator.title = 'You have unsaved changes';
+                card.querySelector('.card-header').appendChild(indicator);
+            }
+        } else {
+            card.classList.remove('has-changes');
+            const indicator = document.querySelector('.change-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+    }
+
+    // Store original data after page load
+    setTimeout(() => {
+        storeOriginalData();
+    }, 1000);
+
     // Language change handler
     document.getElementById('code_language').addEventListener('change', function() {
         const language = this.value;
@@ -459,6 +650,7 @@ function example() {
         if (fullscreenEditor) {
             fullscreenEditor.setOption('mode', mode);
         }
+        checkForChanges();
     });
 
     // Theme change handler
@@ -476,6 +668,7 @@ function example() {
         if (confirm('Are you sure you want to clear all code? This action cannot be undone.')) {
             editor.setValue('');
             editor.focus();
+            checkForChanges();
         }
     });
 
@@ -533,6 +726,7 @@ function example() {
     document.getElementById('save-fullscreen').addEventListener('click', function() {
         if (fullscreenEditor) {
             editor.setValue(fullscreenEditor.getValue());
+            checkForChanges();
         }
         fullscreenModal.hide();
     });
@@ -545,7 +739,7 @@ function example() {
     });
 
     // Form submission handling
-    const form = document.getElementById('assignmentForm');
+    const form = document.getElementById('editAssignmentForm');
     const submitButtons = form.querySelectorAll('button[type="submit"]');
     
     submitButtons.forEach(button => {
@@ -554,74 +748,32 @@ function example() {
             editor.save();
             
             // Set the status based on which button was clicked
-            const action = this.getAttribute('name') === 'action' ? this.value : 'active';
-            document.getElementById('status').value = action === 'draft' ? 'draft' : 'active';
+            const action = this.getAttribute('name') === 'action' ? this.value : 'update';
+            if (action === 'draft') {
+                document.getElementById('status').value = 'draft';
+            }
+            
+            // Clear unsaved changes flag
+            hasUnsavedChanges = false;
         });
     });
 
-    // Auto-save to localStorage
-    let autoSaveTimeout;
-    editor.on('change', function() {
-        clearTimeout(autoSaveTimeout);
-        autoSaveTimeout = setTimeout(() => {
-            const formData = {
-                title: document.getElementById('title').value,
-                course_id: document.getElementById('course_id').value,
-                description: document.getElementById('description').value,
-                code_sample: editor.getValue(),
-                deadline: document.getElementById('deadline').value,
-                status: document.getElementById('status').value,
-                language: document.getElementById('code_language').value,
-                theme: document.getElementById('editor_theme').value
-            };
-            localStorage.setItem('assignment_draft_' + Date.now(), JSON.stringify(formData));
-        }, 2000);
+    // Track changes on form elements
+    const formElements = form.querySelectorAll('input, textarea, select');
+    formElements.forEach(element => {
+        element.addEventListener('change', checkForChanges);
+        element.addEventListener('input', checkForChanges);
     });
 
-    // Load draft on page load (optional)
-    const savedDrafts = Object.keys(localStorage).filter(key => key.startsWith('assignment_draft_'));
-    if (savedDrafts.length > 0 && !document.getElementById('title').value) {
-        const latestDraft = savedDrafts.sort().pop();
-        const draft = JSON.parse(localStorage.getItem(latestDraft));
-        
-        if (confirm('A draft assignment was found. Would you like to restore it?')) {
-            document.getElementById('title').value = draft.title || '';
-            document.getElementById('course_id').value = draft.course_id || '';
-            document.getElementById('description').value = draft.description || '';
-            document.getElementById('deadline').value = draft.deadline || '';
-            document.getElementById('status').value = draft.status || 'draft';
-            document.getElementById('code_language').value = draft.language || 'javascript';
-            document.getElementById('editor_theme').value = draft.theme || 'light';
-            
-            // Update editor
-            editor.setValue(draft.code_sample || '');
-            
-            // Trigger change events
-            document.getElementById('code_language').dispatchEvent(new Event('change'));
-            document.getElementById('editor_theme').dispatchEvent(new Event('change'));
-        }
-        
-        // Clean up old drafts
-        localStorage.removeItem(latestDraft);
-    }
+    // Track changes in CodeMirror
+    editor.on('change', function() {
+        checkForChanges();
+    });
 
     // Prevent accidental page leave
-    let hasUnsavedChanges = false;
-    
-    // Track changes
-    ['input', 'textarea', 'select'].forEach(selector => {
-        document.querySelectorAll(selector).forEach(element => {
-            element.addEventListener('change', () => {
-                hasUnsavedChanges = true;
-            });
-        });
-    });
+    const unsavedChangesModal = new bootstrap.Modal(document.getElementById('unsavedChangesModal'));
+    let pendingNavigation = null;
 
-    editor.on('change', () => {
-        hasUnsavedChanges = true;
-    });
-
-    // Warn before leaving
     window.addEventListener('beforeunload', function(e) {
         if (hasUnsavedChanges) {
             e.preventDefault();
@@ -630,10 +782,79 @@ function example() {
         }
     });
 
+    // Handle navigation links
+    document.querySelectorAll('a[href]').forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (hasUnsavedChanges && !this.href.includes('#')) {
+                e.preventDefault();
+                pendingNavigation = this.href;
+                unsavedChangesModal.show();
+            }
+        });
+    });
+
+    // Confirm leave button
+    document.getElementById('confirmLeave').addEventListener('click', function() {
+        hasUnsavedChanges = false;
+        unsavedChangesModal.hide();
+        if (pendingNavigation) {
+            window.location.href = pendingNavigation;
+        }
+    });
+
     // Clear flag on form submit
     form.addEventListener('submit', () => {
         hasUnsavedChanges = false;
     });
+
+    // Auto-save functionality (optional)
+    let autoSaveTimeout;
+    function autoSave() {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(() => {
+            if (hasUnsavedChanges) {
+                const formData = {
+                    title: document.getElementById('title').value,
+                    course_id: document.getElementById('course_id').value,
+                    description: document.getElementById('description').value,
+                    code_sample: editor.getValue(),
+                    deadline: document.getElementById('deadline').value,
+                    status: document.getElementById('status').value,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('assignment_edit_{{ $assignment->id }}', JSON.stringify(formData));
+                console.log('Auto-saved assignment draft');
+            }
+        }, 5000); // Auto-save after 5 seconds of inactivity
+    }
+
+    // Trigger auto-save on changes
+    formElements.forEach(element => {
+        element.addEventListener('input', autoSave);
+    });
+    editor.on('change', autoSave);
+
+    // Load auto-saved data on page load (optional)
+    const autoSavedData = localStorage.getItem('assignment_edit_{{ $assignment->id }}');
+    if (autoSavedData) {
+        const data = JSON.parse(autoSavedData);
+        const timeDiff = Date.now() - data.timestamp;
+        
+        // Only restore if auto-save is less than 1 hour old
+        if (timeDiff < 3600000 && confirm('An auto-saved version of this assignment was found. Would you like to restore it?')) {
+            document.getElementById('title').value = data.title || '';
+            document.getElementById('course_id').value = data.course_id || '';
+            document.getElementById('description').value = data.description || '';
+            document.getElementById('deadline').value = data.deadline || '';
+            document.getElementById('status').value = data.status || '';
+            editor.setValue(data.code_sample || '');
+            
+            checkForChanges();
+        }
+        
+        // Clean up auto-saved data
+        localStorage.removeItem('assignment_edit_{{ $assignment->id }}');
+    }
 
     // Refresh editor on window resize
     window.addEventListener('resize', () => {
@@ -646,6 +867,63 @@ function example() {
     setTimeout(() => {
         editor.refresh();
     }, 100);
+
+    // Show submission warning if there are submissions
+    @if($assignment->getSubmissionsCount() > 0)
+        const submissionWarning = document.createElement('div');
+        submissionWarning.className = 'submission-warning';
+        submissionWarning.innerHTML = `
+            <div class="d-flex align-items-start gap-2">
+                <i class="ph ph-warning text-warning text-lg mt-1"></i>
+                <div>
+                    <strong>Important:</strong> This assignment has {{ $assignment->getSubmissionsCount() }} submission(s). 
+                    Major changes may affect existing submissions and student work.
+                    <div class="mt-2">
+                        <small>Consider notifying students about significant updates.</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const cardBody = document.querySelector('.card-body');
+        cardBody.insertBefore(submissionWarning, cardBody.firstChild.nextSibling);
+    @endif
+
+    // Add deadline status indicator
+    const deadlineInput = document.getElementById('deadline');
+    const currentDeadline = new Date('{{ $assignment->deadline->toISOString() }}');
+    const now = new Date();
+    
+    function updateDeadlineStatus() {
+        const newDeadline = new Date(deadlineInput.value);
+        const diffTime = newDeadline - now;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        let statusClass = 'normal';
+        let statusText = 'Normal';
+        
+        if (diffTime < 0) {
+            statusClass = 'overdue';
+            statusText = 'Overdue';
+        } else if (diffDays <= 3) {
+            statusClass = 'due-soon';
+            statusText = 'Due Soon';
+        }
+        
+        // Update or create status indicator
+        let statusIndicator = deadlineInput.parentNode.querySelector('.deadline-status');
+        if (!statusIndicator) {
+            statusIndicator = document.createElement('div');
+            statusIndicator.className = 'deadline-status';
+            deadlineInput.parentNode.appendChild(statusIndicator);
+        }
+        
+        statusIndicator.className = `deadline-status ${statusClass}`;
+        statusIndicator.innerHTML = `<i class="ph ph-clock"></i> ${statusText}`;
+    }
+    
+    deadlineInput.addEventListener('change', updateDeadlineStatus);
+    updateDeadlineStatus(); // Initial call
 });
 </script>
 </x-instructor-layout>

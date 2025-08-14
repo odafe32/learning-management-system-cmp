@@ -51,11 +51,8 @@
                     <div class="card-header border-bottom border-gray-100 flex-between flex-wrap gap-8">
                         <h5 class="mb-0">Edit Material Information</h5>
                         <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-info radius-8 px-20 py-11" onclick="previewCurrentFile()">
-                                <i class="ph ph-eye me-8"></i>
-                                Preview Current File
-                            </button>
-                            <a href="{{ route('instructor.materials.index') }}" class="btn btn-outline-primary-600 radius-8 px-20 py-11">
+                         
+                            <a href="{{ route('instructor.materials.index') }}" class="btn btn-primary radius-8 px-20 py-11">
                                 <i class="ph ph-arrow-left me-8"></i>
                                 Back to Materials
                             </a>
@@ -100,16 +97,7 @@
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div class="d-flex flex-column gap-2">
-                                                <button type="button" class="btn btn-primary btn-sm" onclick="previewCurrentFile()">
-                                                    <i class="ph ph-eye me-4"></i>
-                                                    Preview
-                                                </button>
-                                                <a href="{{ route('instructor.materials.download', $material) }}" class="btn btn-secondary btn-sm">
-                                                    <i class="ph ph-download me-4"></i>
-                                                    Download
-                                                </a>
-                                            </div>
+                                         
                                         </div>
                                     </div>
                                 </div>
@@ -205,7 +193,7 @@
                                 <!-- Form Actions -->
                                 <div class="col-12">
                                     <div class="flex-align justify-content-end gap-8">
-                                        <a href="{{ route('instructor.materials.index') }}" class="btn btn-outline-gray-400 radius-8 px-20 py-11">
+                                        <a href="{{ route('instructor.materials.index') }}" class="btn btn-gray radius-8 px-20 py-11">
                                             <i class="ph ph-x me-8"></i>
                                             Cancel
                                         </a>

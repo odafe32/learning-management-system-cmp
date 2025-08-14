@@ -16,26 +16,9 @@
                 <li class="fw-medium">
                     <span class="text-gray-300">/</span>
                 </li>
-                <li class="fw-medium text-primary-600">Materials</li>
+                <li class="fw-medium text-primary">Materials</li>
             </ul>
         </div>
-
-        <!-- Success/Error Messages -->
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="ph ph-check-circle me-8"></i>
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="ph ph-x-circle me-8"></i>
-                {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
 
         <!-- Filters and Search -->
         <div class="card mb-24">
@@ -176,7 +159,7 @@
 
                                                 <!-- Quick Action Buttons -->
                                                 <div class="d-flex gap-2 mt-12">
-                                                    <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1" onclick="previewFile('{{ $materialItem->id }}', '{{ addslashes($materialItem->title) }}', '{{ $materialItem->file_url }}', '{{ $materialItem->file_type }}')">
+                                                    <button type="button" class="btn btn-primary btn-sm flex-grow-1" onclick="previewFile('{{ $materialItem->id }}', '{{ addslashes($materialItem->title) }}', '{{ $materialItem->file_url }}', '{{ $materialItem->file_type }}')">
                                                         <i class="ph ph-eye me-4"></i>
                                                         Preview
                                                     </button>
@@ -243,7 +226,7 @@
                         <i class="ph ph-x me-8"></i>
                         Close
                     </button>
-                    <a id="downloadBtn" href="#" class="btn btn-outline-primary radius-8">
+                    <a id="downloadBtn" href="#" class="btn btn-primary radius-8">
                         <i class="ph ph-download me-8"></i>
                         Download
                     </a>
@@ -444,307 +427,446 @@
     }
     </style>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Auto-hide alerts after 5 seconds
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => {
-            setTimeout(() => {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            }, 5000);
+ <script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Materials page loaded');
+    
+    // Debug: Check if materials are loaded
+    const materialCards = document.querySelectorAll('[id^="material-card-"]');
+    console.log('Found material cards:', materialCards.length);
+    
+    // Auto-hide alerts after 5 seconds
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+        setTimeout(() => {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 5000);
+    });
+
+    // Handle delete form submission
+    const deleteForm = document.getElementById('deleteForm');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', function(e) {
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...';
+            loadingOverlay.classList.remove('d-none');
         });
+    }
 
-        // Handle delete form submission
-        const deleteForm = document.getElementById('deleteForm');
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-
-        if (deleteForm) {
-            deleteForm.addEventListener('submit', function(e) {
-                confirmDeleteBtn.disabled = true;
-                confirmDeleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...';
-                loadingOverlay.classList.remove('d-none');
-            });
-        }
-
-        // Handle edit button clicks with loading state
-        const editButtons = document.querySelectorAll('a[href*="edit"]');
-        editButtons.forEach(button => {
-            button.addEventListener('click', function(e) {
-                loadingOverlay.classList.remove('d-none');
-            });
-        });
-
-        // Handle download button clicks
-        const downloadButtons = document.querySelectorAll('a[href*="download"]');
-        downloadButtons.forEach(button => {
-            button.addEventListener('click', function(e) {
-                const originalText = this.innerHTML;
-                this.innerHTML = '<i class="ph ph-spinner me-8"></i>Downloading...';
-                this.style.pointerEvents = 'none';
-                
-                setTimeout(() => {
-                    this.innerHTML = originalText;
-                    this.style.pointerEvents = 'auto';
-                }, 2000);
-            });
+    // Handle edit button clicks with loading state
+    const editButtons = document.querySelectorAll('a[href*="edit"]');
+    editButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            loadingOverlay.classList.remove('d-none');
         });
     });
 
-    // Show delete modal function
-    function showDeleteModal(materialId, materialTitle) {
-        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        const deleteForm = document.getElementById('deleteForm');
-        const materialTitleElement = document.getElementById('materialTitle');
-        
-        materialTitleElement.textContent = materialTitle;
-        deleteForm.action = `/instructor/materials/${materialId}`;
-        
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-        confirmDeleteBtn.disabled = false;
-        confirmDeleteBtn.innerHTML = '<i class="ph ph-trash me-8"></i><span class="btn-text">Delete Material</span>';
-        
-        modal.show();
-    }
+    // Handle download button clicks
+    const downloadButtons = document.querySelectorAll('a[href*="download"]');
+    downloadButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="ph ph-spinner me-8"></i>Downloading...';
+            this.style.pointerEvents = 'none';
+            
+            setTimeout(() => {
+                this.innerHTML = originalText;
+                this.style.pointerEvents = 'auto';
+            }, 2000);
+        });
+    });
+});
 
-    // Preview file function
-    function previewFile(materialId, title, fileUrl, fileType) {
-        const modal = new bootstrap.Modal(document.getElementById('previewModal'));
-        const previewTitle = document.getElementById('previewTitle');
-        const previewContent = document.getElementById('previewContent');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const openNewTabBtn = document.getElementById('openNewTabBtn');
-        
-        // Set title and links
-        previewTitle.textContent = title;
-        downloadBtn.href = `/instructor/materials/${materialId}/download`;
-        openNewTabBtn.href = fileUrl;
-        
-        // Show loading state
-        previewContent.innerHTML = `
-            <div class="text-center p-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-3">Loading preview...</p>
+// Show delete modal function
+function showDeleteModal(materialId, materialTitle) {
+    console.log('Delete modal called for:', materialId, materialTitle);
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const deleteForm = document.getElementById('deleteForm');
+    const materialTitleElement = document.getElementById('materialTitle');
+    
+    materialTitleElement.textContent = materialTitle;
+    deleteForm.action = `/instructor/materials/${materialId}`;
+    
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    confirmDeleteBtn.disabled = false;
+    confirmDeleteBtn.innerHTML = '<i class="ph ph-trash me-8"></i><span class="btn-text">Delete Material</span>';
+    
+    modal.show();
+}
+
+// Enhanced preview file function with debugging
+function previewFile(materialId, title, fileUrl, fileType) {
+    console.log('Preview file called:', {
+        materialId: materialId,
+        title: title,
+        fileUrl: fileUrl,
+        fileType: fileType
+    });
+    
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    const previewTitle = document.getElementById('previewTitle');
+    const previewContent = document.getElementById('previewContent');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const openNewTabBtn = document.getElementById('openNewTabBtn');
+    
+    // Set title and links
+    previewTitle.textContent = title;
+    downloadBtn.href = `/instructor/materials/${materialId}/download`;
+    openNewTabBtn.href = fileUrl;
+    
+    // Show loading state
+    previewContent.innerHTML = `
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
             </div>
-        `;
-        
-        modal.show();
-        
-        // Generate preview content based on file type
+            <p class="mt-3">Loading preview...</p>
+            <small class="text-muted">Material ID: ${materialId}</small>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Debug: Test file URL accessibility
+    console.log('Testing file URL accessibility...');
+    
+    // First, try to fetch the debug endpoint if in development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        fetch(`/instructor/materials/${materialId}/debug`)
+            .then(response => response.json())
+            .then(debugData => {
+                console.log('Debug data:', debugData);
+                
+                // Check if file exists and is accessible
+                if (!debugData.file_info.file_exists_in_storage) {
+                    console.error('File does not exist in storage');
+                    showPreviewError('File not found in storage', debugData);
+                    return;
+                }
+                
+                if (!debugData.file_info.file_exists_on_disk) {
+                    console.error('File does not exist on disk');
+                    showPreviewError('File not found on disk', debugData);
+                    return;
+                }
+                
+                if (!debugData.auth.can_access) {
+                    console.error('User cannot access this file');
+                    showPreviewError('Access denied', debugData);
+                    return;
+                }
+                
+                // If all checks pass, generate preview
+                setTimeout(() => {
+                    generatePreview(fileUrl, fileType, previewContent, title, materialId);
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Debug fetch failed:', error);
+                // Fallback to normal preview
+                setTimeout(() => {
+                    generatePreview(fileUrl, fileType, previewContent, title, materialId);
+                }, 500);
+            });
+    } else {
+        // Production: Generate preview directly
         setTimeout(() => {
-            generatePreview(fileUrl, fileType, previewContent, title);
+            generatePreview(fileUrl, fileType, previewContent, title, materialId);
         }, 500);
     }
+}
 
-    function generatePreview(fileUrl, fileType, container, title) {
-        const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-        const videoTypes = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'];
-        const audioTypes = ['mp3', 'wav', 'ogg', 'aac'];
-        const documentTypes = ['pdf'];
-        const officeTypes = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'];
+function showPreviewError(message, debugData = null) {
+    const previewContent = document.getElementById('previewContent');
+    
+    let debugInfo = '';
+    if (debugData && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        debugInfo = `
+            <details class="mt-3">
+                <summary class="btn btn-sm btn-outline-secondary">Debug Info</summary>
+                <pre class="mt-2 p-2 bg-light text-start" style="font-size: 12px; max-height: 200px; overflow-y: auto;">${JSON.stringify(debugData, null, 2)}</pre>
+            </details>
+        `;
+    }
+    
+    previewContent.innerHTML = `
+        <div class="text-center p-4">
+            <i class="ph ph-warning-circle text-64 text-danger mb-3"></i>
+            <h5 class="text-danger">Preview Error</h5>
+            <p class="text-muted">${message}</p>
+            ${debugInfo}
+            <div class="mt-3">
+                <button onclick="retryPreview()" class="btn btn-primary me-2">
+                    <i class="ph ph-arrow-clockwise me-2"></i>
+                    Retry
+                </button>
+                <a href="${downloadBtn.href}" class="btn btn-primary">
+                    <i class="ph ph-download me-2"></i>
+                    Download Instead
+                </a>
+            </div>
+        </div>
+    `;
+}
+
+function retryPreview() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
+    const materialId = downloadBtn.href.split('/').slice(-2, -1)[0];
+    const title = previewTitle.textContent;
+    const fileUrl = openNewTabBtn.href;
+    const fileType = 'unknown'; // We'll detect this in generatePreview
+    
+    modal.hide();
+    setTimeout(() => {
+        previewFile(materialId, title, fileUrl, fileType);
+    }, 300);
+}
+
+function generatePreview(fileUrl, fileType, container, title, materialId) {
+    console.log('Generating preview for:', {
+        fileUrl: fileUrl,
+        fileType: fileType,
+        title: title,
+        materialId: materialId
+    });
+    
+    const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+    const videoTypes = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'];
+    const audioTypes = ['mp3', 'wav', 'ogg', 'aac'];
+    const documentTypes = ['pdf'];
+    const officeTypes = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'];
+    
+    fileType = fileType.toLowerCase();
+    
+    // Test file accessibility first
+    testFileAccessibility(fileUrl)
+        .then(isAccessible => {
+            if (!isAccessible) {
+                throw new Error('File is not accessible');
+            }
+            
+            if (imageTypes.includes(fileType)) {
+                generateImagePreview(fileUrl, container, title);
+            } else if (videoTypes.includes(fileType)) {
+                generateVideoPreview(fileUrl, container, title, fileType);
+            } else if (audioTypes.includes(fileType)) {
+                generateAudioPreview(fileUrl, container, title, fileType);
+            } else if (documentTypes.includes(fileType)) {
+                generatePdfPreview(fileUrl, container, title);
+            } else if (officeTypes.includes(fileType)) {
+                generateOfficePreview(fileUrl, container, title, fileType);
+            } else {
+                generateGenericPreview(fileUrl, container, title, fileType);
+            }
+        })
+        .catch(error => {
+            console.error('Preview generation failed:', error);
+            showPreviewError(`Failed to load file: ${error.message}`);
+        });
+}
+
+function testFileAccessibility(fileUrl) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const timeout = setTimeout(() => {
+            resolve(false);
+        }, 5000);
         
-        fileType = fileType.toLowerCase();
+        img.onload = () => {
+            clearTimeout(timeout);
+            resolve(true);
+        };
         
-        if (imageTypes.includes(fileType)) {
-            container.innerHTML = `
-                <div class="p-3">
-                    <img src="${fileUrl}" alt="Image preview" class="img-fluid" style="max-height: 60vh;" 
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <div class="file-info text-center" style="display: none;">
-                        <i class="ph ph-image file-icon text-primary"></i>
-                        <h5>Image Preview Failed</h5>
-                        <p class="text-muted">Unable to load image preview.</p>
-                        <a href="${fileUrl}" target="_blank" class="btn btn-outline-primary">
+        img.onerror = () => {
+            clearTimeout(timeout);
+            // Try with fetch as fallback
+            fetch(fileUrl, { method: 'HEAD' })
+                .then(response => resolve(response.ok))
+                .catch(() => resolve(false));
+        };
+        
+        img.src = fileUrl;
+    });
+}
+
+function generateImagePreview(fileUrl, container, title) {
+    container.innerHTML = `
+        <div class="p-3">
+            <img src="${fileUrl}" alt="Image preview" class="img-fluid" style="max-height: 60vh;" 
+                 onload="console.log('Image loaded successfully')"
+                 onerror="console.error('Image failed to load'); this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <div class="file-info text-center" style="display: none;">
+                <i class="ph ph-image file-icon text-primary"></i>
+                <h5>Image Preview Failed</h5>
+                <p class="text-muted">Unable to load image preview.</p>
+                <a href="${fileUrl}" target="_blank" class="btn btn-primary">
+                    <i class="ph ph-arrow-square-out me-2"></i>
+                    Open in New Tab
+                </a>
+            </div>
+        </div>
+    `;
+}
+
+function generateVideoPreview(fileUrl, container, title, fileType) {
+    container.innerHTML = `
+        <div class="p-3">
+            <video controls class="w-100" style="max-height: 60vh;" preload="metadata">
+                <source src="${fileUrl}" type="video/${fileType}">
+                <div class="file-info text-center">
+                    <i class="ph ph-video file-icon text-primary"></i>
+                    <h5>Video Preview Not Supported</h5>
+                    <p class="text-muted">Your browser doesn't support this video format.</p>
+                    <a href="${fileUrl}" target="_blank" class="btn btn-primary">
+                        <i class="ph ph-arrow-square-out me-2"></i>
+                        Open in New Tab
+                    </a>
+                </div>
+            </video>
+        </div>
+    `;
+}
+
+function generateAudioPreview(fileUrl, container, title, fileType) {
+    container.innerHTML = `
+        <div class="p-4">
+            <div class="file-info text-center">
+                <i class="ph ph-music-note file-icon text-primary"></i>
+                <h5>${title}</h5>
+                <p class="text-muted mb-3">Audio File - ${fileType.toUpperCase()}</p>
+                <audio controls class="w-100 mt-3" style="max-width: 500px;" preload="metadata">
+                    <source src="${fileUrl}" type="audio/${fileType}">
+                    Your browser does not support the audio tag.
+                </audio>
+            </div>
+        </div>
+    `;
+}
+
+function generatePdfPreview(fileUrl, container, title) {
+    container.innerHTML = `
+        <div class="p-2">
+            <iframe src="${fileUrl}#toolbar=0&navpanes=0&scrollbar=0" 
+                    style="width: 100%; height: 60vh; border: none; border-radius: 8px;"
+                    onload="console.log('PDF loaded successfully')"
+                    onerror="console.error('PDF failed to load'); showPdfError()">
+            </iframe>
+            <div id="pdfError" class="document-preview-error text-center" style="display: none;">
+                <i class="ph ph-warning-circle text-24 mb-2"></i>
+                <h6>PDF Preview Not Available</h6>
+                <p class="mb-3">Your browser settings may be blocking PDF preview.</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="${fileUrl}" target="_blank" class="btn btn-primary">
+                        <i class="ph ph-arrow-square-out me-2"></i>
+                        Open PDF in New Tab
+                    </a>
+                    <a href="https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}" target="_blank" class="btn btn-primary">
+                        <i class="ph ph-google-logo me-2"></i>
+                        View with Google
+                    </a>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateOfficePreview(fileUrl, container, title, fileType) {
+    const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    
+    container.innerHTML = `
+        <div class="p-3">
+            <div class="file-info text-center">
+                <i class="ph ${getOfficeIcon(fileType)} file-icon text-primary"></i>
+                <h5>${title}</h5>
+                <p class="text-muted mb-3">${fileType.toUpperCase()} Document</p>
+                <iframe src="${googleViewerUrl}" 
+                        style="width: 100%; height: 60vh; border: none; border-radius: 8px;"
+                        onload="console.log('Office document loaded')"
+                        onerror="console.error('Office document failed to load'); this.style.display='none'; this.nextElementSibling.style.display='block';">
+                </iframe>
+                <div class="document-preview-error" style="display: none;">
+                    <p>Document preview failed to load</p>
+                    <div class="mt-3">
+                        <a href="${fileUrl}" target="_blank" class="btn btn-primary me-2">
                             <i class="ph ph-arrow-square-out me-2"></i>
                             Open in New Tab
                         </a>
+                        <a href="${googleViewerUrl}" target="_blank" class="btn btn-primary">
+                            <i class="ph ph-google-logo me-2"></i>
+                            Google Viewer
+                        </a>
                     </div>
                 </div>
-            `;
-        } else if (videoTypes.includes(fileType)) {
-            container.innerHTML = `
-                <div class="p-3">
-                    <video controls class="w-100" style="max-height: 60vh;">
-                        <source src="${fileUrl}" type="video/${fileType}">
-                        <div class="file-info text-center">
-                            <i class="ph ph-video file-icon text-primary"></i>
-                            <h5>Video Preview Not Supported</h5>
-                            <p class="text-muted">Your browser doesn't support this video format.</p>
-                            <a href="${fileUrl}" target="_blank" class="btn btn-outline-primary">
-                                <i class="ph ph-arrow-square-out me-2"></i>
-                                Open in New Tab
-                            </a>
-                        </div>
-                    </video>
-                </div>
-            `;
-        } else if (audioTypes.includes(fileType)) {
-            container.innerHTML = `
-                <div class="p-4">
-                    <div class="file-info text-center">
-                        <i class="ph ph-music-note file-icon text-primary"></i>
-                        <h5>${title}</h5>
-                        <p class="text-muted mb-3">Audio File - ${fileType.toUpperCase()}</p>
-                        <audio controls class="w-100 mt-3" style="max-width: 500px;">
-                            <source src="${fileUrl}" type="audio/${fileType}">
-                            Your browser does not support the audio tag.
-                        </audio>
-                    </div>
-                </div>
-            `;
-        } else if (documentTypes.includes(fileType)) {
-            // For PDFs, try multiple approaches
-            container.innerHTML = `
-                <div class="p-2">
-                    <div class="preview-options">
-                        <div class="preview-option">
-                            <h6 class="text-center mb-3">PDF Preview</h6>
-                            <iframe src="${fileUrl}#toolbar=0&navpanes=0&scrollbar=0" 
-                                    style="width: 100%; height: 60vh; border: none; border-radius: 8px;"
-                                    onerror="showPdfError()">
-                            </iframe>
-                        </div>
-                    </div>
-                    <div id="pdfError" class="document-preview-error text-center" style="display: none;">
-                        <i class="ph ph-warning-circle text-24 mb-2"></i>
-                        <h6>PDF Preview Not Available</h6>
-                        <p class="mb-3">Your browser settings may be blocking PDF preview.</p>
-                        <div class="d-flex gap-2 justify-content-center">
-                            <a href="${fileUrl}" target="_blank" class="btn btn-primary">
-                                <i class="ph ph-arrow-square-out me-2"></i>
-                                Open PDF in New Tab
-                            </a>
-                            <a href="https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}" target="_blank" class="btn btn-outline-primary">
-                                <i class="ph ph-google-logo me-2"></i>
-                                View with Google
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else if (officeTypes.includes(fileType)) {
-            // For Office documents, use Google Docs Viewer and Office Online
-            const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-            const officeOnlineUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
-            
-            container.innerHTML = `
-                <div class="p-3">
-                    <div class="file-info text-center">
-                        <i class="ph ${getOfficeIcon(fileType)} file-icon text-primary"></i>
-                        <h5>${title}</h5>
-                        <p class="text-muted mb-3">${fileType.toUpperCase()} Document</p>
-                        <div class="preview-options">
-                            <div class="preview-option">
-                                <h6>Google Docs Viewer</h6>
-                                <iframe src="${googleViewerUrl}" 
-                                        style="width: 100%; height: 50vh; border: none; border-radius: 8px;"
-                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                                </iframe>
-                                <div class="document-preview-error" style="display: none;">
-                                    <p>Google Viewer failed to load</p>
-                                </div>
-                            </div>
-                            <div class="preview-option">
-                                <h6>Office Online Viewer</h6>
-                                <iframe src="${officeOnlineUrl}" 
-                                        style="width: 100%; height: 50vh; border: none; border-radius: 8px;"
-                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                                </iframe>
-                                <div class="document-preview-error" style="display: none;">
-                                    <p>Office Online Viewer failed to load</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <a href="${fileUrl}" target="_blank" class="btn btn-primary me-2">
-                                <i class="ph ph-arrow-square-out me-2"></i>
-                                Open in New Tab
-                            </a>
-                            <a href="${googleViewerUrl}" target="_blank" class="btn btn-outline-primary">
-                                <i class="ph ph-google-logo me-2"></i>
-                                Google Viewer
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            // For other file types, show file info with multiple options
-            const iconMap = {
-                'txt': 'ph-file-text',
-                'zip': 'ph-file-zip',
-                'rar': 'ph-file-zip',
-                '7z': 'ph-file-zip'
-            };
-            
-            const icon = iconMap[fileType] || 'ph-file';
-            
-            container.innerHTML = `
-                <div class="p-4">
-                    <div class="file-info text-center">
-                        <i class="ph ${icon} file-icon text-primary"></i>
-                        <h5>${title}</h5>
-                        <p class="text-muted">File Type: <strong>${fileType.toUpperCase()}</strong></p>
-                        <p class="mb-3">This file type cannot be previewed in the browser.</p>
-                        <div class="d-flex gap-2 justify-content-center flex-wrap">
-                            <a href="${fileUrl}" target="_blank" class="btn btn-primary">
-                                <i class="ph ph-arrow-square-out me-2"></i>
-                                Open in New Tab
-                            </a>
-                            <a href="${fileUrl}" download class="btn btn-outline-primary">
-                                <i class="ph ph-download me-2"></i>
-                                Download File
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    function getOfficeIcon(fileType) {
-        const icons = {
-            'doc': 'ph-file-doc',
-            'docx': 'ph-file-doc',
-            'xls': 'ph-file-xls',
-            'xlsx': 'ph-file-xls',
-            'ppt': 'ph-file-ppt',
-            'pptx': 'ph-file-ppt'
-        };
-        return icons[fileType] || 'ph-file-doc';
-    }
-
-    function showPdfError() {
-        document.getElementById('pdfError').style.display = 'block';
-    }
-
-    // Handle successful operations
-    @if(session('success'))
-        document.addEventListener('DOMContentLoaded', function() {
-            const successAlert = document.querySelector('.alert-success');
-            if (successAlert) {
-                successAlert.style.animation = 'slideInDown 0.5s ease-out';
-            }
-        });
-    @endif
-
-    // Add CSS animations
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideInDown {
-            from {
-                transform: translateY(-100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
+            </div>
+        </div>
     `;
-    document.head.appendChild(style);
-    </script>
+}
+
+function generateGenericPreview(fileUrl, container, title, fileType) {
+    const iconMap = {
+        'txt': 'ph-file-text',
+        'zip': 'ph-file-zip',
+        'rar': 'ph-file-zip',
+        '7z': 'ph-file-zip'
+    };
+    
+    const icon = iconMap[fileType] || 'ph-file';
+    
+    container.innerHTML = `
+        <div class="p-4">
+            <div class="file-info text-center">
+                <i class="ph ${icon} file-icon text-primary"></i>
+                <h5>${title}</h5>
+                <p class="text-muted">File Type: <strong>${fileType.toUpperCase()}</strong></p>
+                <p class="mb-3">This file type cannot be previewed in the browser.</p>
+                <div class="d-flex gap-2 justify-content-center flex-wrap">
+                    <a href="${fileUrl}" target="_blank" class="btn btn-primary">
+                        <i class="ph ph-arrow-square-out me-2"></i>
+                        Open in New Tab
+                    </a>
+                    <a href="${fileUrl}" download class="btn btn-primary">
+                        <i class="ph ph-download me-2"></i>
+                        Download File
+                    </a>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function getOfficeIcon(fileType) {
+    const icons = {
+        'doc': 'ph-file-doc',
+        'docx': 'ph-file-doc',
+        'xls': 'ph-file-xls',
+        'xlsx': 'ph-file-xls',
+        'ppt': 'ph-file-ppt',
+        'pptx': 'ph-file-ppt'
+    };
+    return icons[fileType] || 'ph-file-doc';
+}
+
+function showPdfError() {
+    const pdfError = document.getElementById('pdfError');
+    if (pdfError) {
+        pdfError.style.display = 'block';
+    }
+}
+
+// Handle successful operations
+@if(session('success'))
+    document.addEventListener('DOMContentLoaded', function() {
+        const successAlert = document.querySelector('.alert-success');
+        if (successAlert) {
+            successAlert.style.animation = 'slideInDown 0.5s ease-out';
+        }
+    });
+@endif
+</script>
+
 </x-instructor-layout>

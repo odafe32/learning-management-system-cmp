@@ -15,11 +15,11 @@ class CourseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get all lecturers to assign courses to
-        $lecturers = User::where('role', 'lecturer')->get();
+        // Get all instructors to assign courses to (changed from lecturers)
+        $instructors = User::where('role', 'instructor')->get();
 
-        if ($lecturers->isEmpty()) {
-            $this->command->warn('No lecturers found. Please seed users first.');
+        if ($instructors->isEmpty()) {
+            $this->command->warn('No instructors found. Please seed users first.');
             return;
         }
 
@@ -218,8 +218,8 @@ class CourseSeeder extends Seeder
         ];
 
         foreach ($courses as $courseData) {
-            // Randomly assign to a lecturer
-            $lecturer = $lecturers->random();
+            // Randomly assign to an instructor (changed from lecturer)
+            $instructor = $instructors->random();
             
             // Generate slug from title
             $slug = Str::slug($courseData['title']);
@@ -233,7 +233,7 @@ class CourseSeeder extends Seeder
             }
 
             Course::create([
-                'user_id' => $lecturer->id,
+                'user_id' => $instructor->id,
                 'title' => $courseData['title'],
                 'slug' => $slug,
                 'code' => $courseData['code'],
@@ -247,6 +247,6 @@ class CourseSeeder extends Seeder
         }
 
         $this->command->info('Courses seeded successfully!');
-        $this->command->info('Created ' . count($courses) . ' courses assigned to ' . $lecturers->count() . ' lecturers.');
+        $this->command->info('Created ' . count($courses) . ' courses assigned to ' . $instructors->count() . ' instructors.');
     }
 }

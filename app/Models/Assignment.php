@@ -168,16 +168,98 @@ class Assignment extends Model
 
     public function getSubmissionsCount(): int
     {
-        return $this->submissions()->count();
+        try {
+            return $this->submissions()->count();
+        } catch (\Exception $e) {
+            // Handle case where submissions table doesn't exist yet
+            return 0;
+        }
     }
 
     public function getPendingSubmissionsCount(): int
     {
-        return $this->submissions()->where('status', 'pending')->count();
+        try {
+            return $this->submissions()->where('status', 'pending')->count();
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 
     public function getGradedSubmissionsCount(): int
     {
-        return $this->submissions()->where('status', 'graded')->count();
+        try {
+            return $this->submissions()->where('status', 'graded')->count();
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
+
+    public function getSubmittedSubmissionsCount(): int
+    {
+        try {
+            return $this->submissions()->where('status', 'submitted')->count();
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
+
+    public function getAverageGrade(): ?float
+    {
+        try {
+            return $this->submissions()
+                ->where('status', 'graded')
+                ->whereNotNull('grade')
+                ->avg('grade');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    public function getFormattedAverageGrade(): string
+    {
+        $average = $this->getAverageGrade();
+        
+        if ($average === null) {
+            return 'N/A';
+        }
+
+        return number_format($average, 1) . '%';
+    }
+
+    public function hasSubmissions(): bool
+    {
+        try {
+            return $this->submissions()->exists();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    public function getSubmissionStats(): array
+    {
+        try {
+            $total = $this->getSubmissionsCount();
+            $submitted = $this->getSubmittedSubmissionsCount();
+            $pending = $this->getPendingSubmissionsCount();
+            $graded = $this->getGradedSubmissionsCount();
+
+            return [
+                'total' => $total,
+                'submitted' => $submitted,
+                'pending' => $pending,
+                'graded' => $graded,
+                'draft' => $total - $submitted - $pending - $graded,
+                'average_grade' => $this->getAverageGrade(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'total' => 0,
+                'submitted' => 0,
+                'pending' => 0,
+                'graded' => 0,
+                'draft' => 0,
+                'average_grade' => null,
+            ];
+        }
     }
 }
