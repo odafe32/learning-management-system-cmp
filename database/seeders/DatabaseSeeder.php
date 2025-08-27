@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
             MaterialSeeder::class,   // Third: Create materials (requires courses and instructors)
             AssignmentSeeder::class, // Fourth: Create assignments (requires courses and instructors)
             SubmissionSeeder::class, // Fifth: Create submissions (requires assignments and students)
+            CourseStudentSeeder::class, // Fifth: Create submissions (requires assignments and students)
+            MessageSeeder::class, // Fifth: Create submissions (requires assignments and students)
         ]);
 
         $this->command->info('🎉 Database seeding completed successfully!');

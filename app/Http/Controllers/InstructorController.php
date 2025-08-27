@@ -11,38 +11,241 @@ use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Requests\CourseRequest;
 use App\Http\Requests\MaterialRequest;
+use Illuminate\Support\Facades\DB; 
 use App\Models\Course;
 use App\Models\Material;
 use App\Models\Submission;
+use App\Models\CourseStudent;
+use App\Models\User; 
+use App\Models\Message;
 use App\Http\Requests\AssignmentRequest;
 use App\Models\Assignment;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class InstructorController extends Controller
 {
-    public function dashboard()
-    {
-        $user = Auth::user();
+public function dashboard()
+{
+    $user = Auth::user();
+    
+    try {
+        // Basic course statistics
         $coursesCount = Course::byInstructor($user->id)->count();
         $activeCourses = Course::byInstructor($user->id)->active()->count();
         $recentCourses = Course::byInstructor($user->id)->latest()->take(5)->get();
         $materialsCount = Material::byInstructor($user->id)->count();
 
+        // Assignment statistics
+        $assignmentsCount = Assignment::byInstructor($user->id)->count();
+        $pendingGrading = Submission::whereHas('assignment', function($q) use ($user) {
+            $q->where('assignments.user_id', $user->id);
+        })->whereIn('status', ['submitted', 'pending'])->count();
+        
+        $gradedAssignments = Submission::whereHas('assignment', function($q) use ($user) {
+            $q->where('assignments.user_id', $user->id);
+        })->where('status', 'graded')->count();
+        
+        $overdueAssignments = Assignment::byInstructor($user->id)
+            ->where('deadline', '<', now())
+            ->whereHas('submissions', function($q) {
+                $q->whereIn('status', ['submitted', 'pending']);
+            })->count();
+
+        // Student statistics - Fixed the ambiguous column issue
+        $studentsCount = DB::table('users')
+            ->join('course_student', 'users.id', '=', 'course_student.user_id')
+            ->join('courses', 'course_student.course_id', '=', 'courses.id')
+            ->where('courses.user_id', $user->id)
+            ->where('users.role', 'student')
+            ->distinct('users.id')
+            ->count('users.id');
+        
+        $activeStudents = DB::table('users')
+            ->join('course_student', 'users.id', '=', 'course_student.user_id')
+            ->join('courses', 'course_student.course_id', '=', 'courses.id')
+            ->where('courses.user_id', $user->id)
+            ->where('users.role', 'student')
+            ->where('course_student.status', 'active')
+            ->distinct('users.id')
+            ->count('users.id');
+
+        // Message statistics
+        $unreadMessages = Message::where('receiver_id', $user->id)
+            ->where('is_read', false)
+            ->count();
+
+        // Upcoming deadlines
+        $upcomingDeadlines = Assignment::byInstructor($user->id)
+            ->where('deadline', '>', now())
+            ->where('deadline', '<=', now()->addDays(7))
+            ->with('course')
+            ->orderBy('deadline')
+            ->take(5)
+            ->get();
+
+        // Real enrollment data for chart
+        $enrollmentData = DB::table('course_student')
+            ->join('courses', 'course_student.course_id', '=', 'courses.id')
+            ->where('courses.user_id', $user->id)
+            ->selectRaw('MONTH(course_student.enrolled_at) as month, COUNT(*) as count')
+            ->whereYear('course_student.enrolled_at', now()->year)
+            ->groupBy('month')
+            ->orderBy('month')
+            ->pluck('count', 'month');
+
+        // Fill missing months with 0
+        $monthlyEnrollments = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $monthlyEnrollments[] = $enrollmentData->get($i, 0);
+        }
+
+        // Recent activities - Get real data
+        $recentActivities = collect();
+        
+        // Get recent submissions
+        $recentSubmissions = Submission::whereHas('assignment', function($q) use ($user) {
+            $q->where('assignments.user_id', $user->id);
+        })
+        ->with(['assignment', 'student'])
+        ->latest()
+        ->take(3)
+        ->get();
+
+        foreach ($recentSubmissions as $submission) {
+            $recentActivities->push([
+                'message' => "New submission from {$submission->student->name} for {$submission->assignment->title}",
+                'time' => $submission->created_at->diffForHumans(),
+                'icon' => 'file-text',
+                'color' => 'success'
+            ]);
+        }
+
+        // Get recent course updates
+        $recentCourseUpdates = Course::byInstructor($user->id)
+            ->latest('updated_at')
+            ->take(2)
+            ->get();
+
+        foreach ($recentCourseUpdates as $course) {
+            if ($course->updated_at->gt($course->created_at)) {
+                $recentActivities->push([
+                    'message' => "Course \"{$course->title}\" was updated",
+                    'time' => $course->updated_at->diffForHumans(),
+                    'icon' => 'book-open',
+                    'color' => 'primary'
+                ]);
+            }
+        }
+
+        // Get recent material uploads
+        $recentMaterials = Material::byInstructor($user->id)
+            ->with('course')
+            ->latest()
+            ->take(2)
+            ->get();
+
+        foreach ($recentMaterials as $material) {
+            $recentActivities->push([
+                'message' => "Material \"{$material->title}\" uploaded to {$material->course->title}",
+                'time' => $material->created_at->diffForHumans(),
+                'icon' => 'upload',
+                'color' => 'warning'
+            ]);
+        }
+
+        // Sort activities by time and take only the most recent 5
+        $recentActivities = $recentActivities->sortByDesc(function($activity) {
+            return strtotime($activity['time']);
+        })->take(5)->values();
+
+        // If no real activities, show placeholder
+        if ($recentActivities->isEmpty()) {
+            $recentActivities = collect([
+                [
+                    'message' => 'Welcome to your dashboard! Start by creating a course.',
+                    'time' => 'Just now',
+                    'icon' => 'info',
+                    'color' => 'info'
+                ]
+            ]);
+        }
+
         $viewData = [
             'meta_title' => 'Instructor Dashboard | LMS',
             'meta_desc'  => 'Manage your courses, assignments, and students',
             'meta_image' => url('assets/images/logo/logo.png'),
+            
+            // Course data
             'coursesCount' => $coursesCount,
             'activeCourses' => $activeCourses,
             'recentCourses' => $recentCourses,
             'materialsCount' => $materialsCount,
+            
+            // Assignment data
+            'assignmentsCount' => $assignmentsCount,
+            'pendingGrading' => $pendingGrading,
+            'gradedAssignments' => $gradedAssignments,
+            'overdueAssignments' => $overdueAssignments,
+            
+            // Student data
+            'studentsCount' => $studentsCount,
+            'activeStudents' => $activeStudents,
+            
+            // Message data
+            'unreadMessages' => $unreadMessages,
+            
+            // Activity data
+            'upcomingDeadlines' => $upcomingDeadlines,
+            'recentActivities' => $recentActivities,
+            
+            // Chart data
+            'monthlyEnrollments' => $monthlyEnrollments,
+        ];
+
+        return view('instructor.dashboard', $viewData);
+
+    } catch (\Exception $e) {
+        Log::error('Dashboard loading error', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'user_id' => $user->id
+        ]);
+
+        // Return dashboard with default values on error
+        $viewData = [
+            'meta_title' => 'Instructor Dashboard | LMS',
+            'meta_desc'  => 'Manage your courses, assignments, and students',
+            'meta_image' => url('assets/images/logo/logo.png'),
+            
+            // Default values
+            'coursesCount' => 0,
+            'activeCourses' => 0,
+            'recentCourses' => collect(),
+            'materialsCount' => 0,
+            'assignmentsCount' => 0,
+            'pendingGrading' => 0,
+            'gradedAssignments' => 0,
+            'overdueAssignments' => 0,
+            'studentsCount' => 0,
+            'activeStudents' => 0,
+            'unreadMessages' => 0,
+            'upcomingDeadlines' => collect(),
+            'recentActivities' => collect([
+                [
+                    'message' => 'Dashboard is loading. Please refresh the page.',
+                    'time' => 'Just now',
+                    'icon' => 'warning',
+                    'color' => 'warning'
+                ]
+            ]),
+            'monthlyEnrollments' => [0,0,0,0,0,0,0,0,0,0,0,0],
         ];
 
         return view('instructor.dashboard', $viewData);
     }
-
+}
     // Profile Management
     public function profile()
     {
@@ -1287,26 +1490,882 @@ public function viewSubmissionDetail(Submission $submission)
 }
 
     // Students
-    public function viewEnrolledStudents()
-    {
+  public function viewEnrolledStudents(Request $request)
+{
+    $instructor = Auth::user();
+    
+    // Get instructor's courses
+    $instructorCourses = Course::where('user_id', $instructor->id)->get();
+    
+    if ($instructorCourses->isEmpty()) {
         $viewData = [
             'meta_title' => 'Enrolled Students | LMS',
-            'meta_desc'  => 'View enrolled students',
+            'meta_desc' => 'View enrolled students',
             'meta_image' => url('assets/images/logo/logo.png'),
+            'courses' => collect(),
+            'students' => collect(),
+            'selectedCourseId' => 'all',
+            'searchTerm' => '',
+            'statusFilter' => 'all',
+            'sortBy' => 'name',
+            'sortOrder' => 'asc',
+            'stats' => [
+                'total_enrollments' => 0,
+                'active_enrollments' => 0,
+                'inactive_enrollments' => 0,
+                'completed_enrollments' => 0,
+                'dropped_enrollments' => 0,
+                'recent_enrollments' => 0,
+            ],
+            'availableStatuses' => CourseStudent::getStatuses(),
         ];
 
         return view('instructor.students', $viewData);
     }
 
-    // Messages
-    public function messages()
+    // Get filter parameters
+    $selectedCourseId = $request->get('course_id', 'all');
+    $searchTerm = $request->get('search', '');
+    $statusFilter = $request->get('status', 'all');
+    $sortBy = $request->get('sort_by', 'name');
+    $sortOrder = $request->get('sort_order', 'asc');
+
+    // Build the query
+    $studentsQuery = User::query()
+        ->select([
+            'users.*',
+            'course_student.enrolled_at',
+            'course_student.status as enrollment_status',
+            'courses.title as course_title',
+            'courses.code as course_code',
+            'courses.id as course_id'
+        ])
+        ->join('course_student', 'users.id', '=', 'course_student.user_id')
+        ->join('courses', 'course_student.course_id', '=', 'courses.id')
+        ->where('courses.user_id', $instructor->id)
+        ->where('users.role', User::ROLE_STUDENT);
+
+    // Apply filters
+    if ($selectedCourseId !== 'all') {
+        $studentsQuery->where('courses.id', $selectedCourseId);
+    }
+
+    if ($statusFilter !== 'all') {
+        $studentsQuery->where('course_student.status', $statusFilter);
+    }
+
+    if (!empty($searchTerm)) {
+        $studentsQuery->where(function($q) use ($searchTerm) {
+            $q->where('users.name', 'like', "%{$searchTerm}%")
+              ->orWhere('users.email', 'like', "%{$searchTerm}%")
+              ->orWhere('users.matric_or_staff_id', 'like', "%{$searchTerm}%");
+        });
+    }
+
+// Check for success parameter and set flash message
+    if ($request->has('success')) {
+        session()->flash('success', 'Student has been successfully removed from the course.');
+    }
+
+
+    // Apply sorting
+    switch ($sortBy) {
+        case 'name':
+            $studentsQuery->orderBy('users.name', $sortOrder);
+            break;
+        case 'course':
+            $studentsQuery->orderBy('courses.title', $sortOrder);
+            break;
+        case 'enrolled_at':
+            $studentsQuery->orderBy('course_student.enrolled_at', $sortOrder);
+            break;
+        case 'status':
+            $studentsQuery->orderBy('course_student.status', $sortOrder);
+            break;
+        default:
+            $studentsQuery->orderBy('users.name', 'asc');
+    }
+
+    // Get results and fix dates
+    $students = $studentsQuery->paginate(15)->withQueryString();
+    
+    // Convert enrolled_at strings to Carbon instances
+    $students->getCollection()->transform(function ($student) {
+        if ($student->enrolled_at) {
+            $student->enrolled_at = \Carbon\Carbon::parse($student->enrolled_at);
+        }
+        return $student;
+    });
+
+    // Get statistics
+    $stats = $this->getEnrollmentStats($instructor->id, $selectedCourseId);
+
+    // Get selected course
+    $selectedCourse = null;
+    if ($selectedCourseId !== 'all') {
+        $selectedCourse = $instructorCourses->find($selectedCourseId);
+    }
+
+    $viewData = [
+        'meta_title' => 'Enrolled Students | LMS',
+        'meta_desc' => 'View and manage enrolled students',
+        'meta_image' => url('assets/images/logo/logo.png'),
+        'courses' => $instructorCourses,
+        'students' => $students,
+        'selectedCourse' => $selectedCourse,
+        'selectedCourseId' => $selectedCourseId,
+        'searchTerm' => $searchTerm,
+        'statusFilter' => $statusFilter,
+        'sortBy' => $sortBy,
+        'sortOrder' => $sortOrder,
+        'stats' => $stats,
+        'availableStatuses' => CourseStudent::getStatuses(),
+    ];
+
+    return view('instructor.students', $viewData);
+}
+/**
+ * Get enrollment statistics for instructor
+ */
+private function getEnrollmentStats($instructorId, $courseId = 'all')
+{
+    $baseQuery = DB::table('course_student')
+        ->join('courses', 'course_student.course_id', '=', 'courses.id')
+        ->where('courses.user_id', $instructorId);
+
+    if ($courseId !== 'all') {
+        $baseQuery->where('courses.id', $courseId);
+    }
+
+    return [
+        'total_enrollments' => $baseQuery->count(),
+        'active_enrollments' => (clone $baseQuery)->where('course_student.status', 'active')->count(),
+        'inactive_enrollments' => (clone $baseQuery)->where('course_student.status', 'inactive')->count(),
+        'completed_enrollments' => (clone $baseQuery)->where('course_student.status', 'completed')->count(),
+        'dropped_enrollments' => (clone $baseQuery)->where('course_student.status', 'dropped')->count(),
+        'recent_enrollments' => (clone $baseQuery)
+            ->where('course_student.enrolled_at', '>=', now()->subDays(30))
+            ->count(),
+    ];
+}
+    /**
+     * Update student enrollment status
+     */
+    public function updateStudentStatus(Request $request)
     {
-        $viewData = [
-            'meta_title' => 'Messages | LMS',
-            'meta_desc'  => 'View and send messages',
-            'meta_image' => url('assets/images/logo/logo.png'),
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'course_id' => 'required|exists:courses,id',
+            'status' => 'required|in:active,inactive,completed,dropped',
+        ]);
+
+        $instructor = Auth::user();
+        
+        // Verify the course belongs to the instructor
+        $course = Course::where('id', $request->course_id)
+                       ->where('user_id', $instructor->id)
+                       ->first();
+
+        if (!$course) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Update enrollment status
+        $updated = CourseStudent::where('user_id', $request->user_id)
+                                ->where('course_id', $request->course_id)
+                                ->update([
+                                    'status' => $request->status,
+                                    'updated_at' => now(),
+                                ]);
+
+        if ($updated) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Student enrollment status updated successfully.',
+            ]);
+        }
+
+        return response()->json(['error' => 'Failed to update status'], 500);
+    }
+
+   /**
+ * Remove student from course
+ */
+public function removeStudentFromCourse(Request $request)
+{
+    try {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'course_id' => 'required|exists:courses,id'
+        ]);
+
+        $instructor = Auth::user();
+        $userId = $request->user_id;
+        $courseId = $request->course_id;
+
+        // Verify the course belongs to the instructor
+        $course = Course::where('id', $courseId)
+            ->where('user_id', $instructor->id)
+            ->first();
+
+        if (!$course) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Course not found or you do not have permission to manage this course.'
+            ], 403);
+        }
+
+        // Get student details for the success message
+        $student = User::find($userId);
+        
+        // Remove the enrollment
+        $deleted = CourseStudent::where('user_id', $userId)
+            ->where('course_id', $courseId)
+            ->delete();
+
+        if ($deleted) {
+            return response()->json([
+                'success' => true,
+                'message' => "Student {$student->name} has been successfully removed from {$course->code}.",
+                'redirect' => true
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student enrollment not found.'
+            ], 404);
+        }
+
+    } catch (\Exception $e) {
+        Log::error('Error removing student from course', [
+            'error' => $e->getMessage(),
+            'user_id' => $request->user_id,
+            'course_id' => $request->course_id,
+            'instructor_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'An error occurred while removing the student.'
+        ], 500);
+    }
+}
+
+    /**
+     * Export enrolled students to CSV
+     */
+    public function exportEnrolledStudents(Request $request)
+    {
+        $instructor = Auth::user();
+        $courseId = $request->get('course_id', 'all');
+
+        // Build query similar to viewEnrolledStudents
+        $studentsQuery = User::query()
+            ->select([
+                'users.name',
+                'users.email',
+                'users.matric_or_staff_id',
+                'users.department',
+                'users.faculty',
+                'users.level',
+                'course_student.enrolled_at',
+                'course_student.status as enrollment_status',
+                'courses.title as course_title',
+                'courses.code as course_code'
+            ])
+            ->join('course_student', 'users.id', '=', 'course_student.user_id')
+            ->join('courses', 'course_student.course_id', '=', 'courses.id')
+            ->where('courses.user_id', $instructor->id)
+            ->where('users.role', User::ROLE_STUDENT);
+
+        if ($courseId !== 'all') {
+            $studentsQuery->where('courses.id', $courseId);
+        }
+
+        $students = $studentsQuery->orderBy('users.name')->get();
+
+        $filename = 'enrolled_students_' . date('Y-m-d_H-i-s') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"$filename\"",
         ];
 
-        return view('instructor.messages', $viewData);
+        $callback = function() use ($students) {
+            $file = fopen('php://output', 'w');
+            
+            // Add CSV headers
+            fputcsv($file, [
+                'Name',
+                'Email',
+                'Matric/Staff ID',
+                'Department',
+                'Faculty',
+                'Level',
+                'Course Code',
+                'Course Title',
+                'Enrollment Status',
+                'Enrolled At'
+            ]);
+
+            // Add data rows
+            foreach ($students as $student) {
+                fputcsv($file, [
+                    $student->name,
+                    $student->email,
+                    $student->matric_or_staff_id,
+                    $student->department,
+                    $student->faculty,
+                    $student->level,
+                    $student->course_code,
+                    $student->course_title,
+                    ucfirst($student->enrollment_status),
+                    $student->enrolled_at ? $student->enrolled_at->format('Y-m-d H:i:s') : '',
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
+ /**
+ * Display messages page
+ */
+public function messages(Request $request)
+{
+    $user = Auth::user();
+    
+    // Get filter parameters
+    $filter = $request->get('filter', 'all');
+    $search = $request->get('search', '');
+    $conversationWith = $request->get('conversation');
+
+    // Get conversations list
+    $conversations = Message::getConversationsForUser($user->id, 20);
+    
+    $messages = collect();
+    $conversationPartner = null;
+    
+    if ($conversationWith) {
+        // Show specific conversation
+        $messages = Message::conversation($user->id, $conversationWith)
+            ->with(['sender', 'receiver'])
+            ->get();
+        $conversationPartner = User::find($conversationWith);
+        
+        // Mark messages as read
+        Message::where('receiver_id', $user->id)
+            ->where('sender_id', $conversationWith)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+    }
+
+    // Apply filters
+    if ($filter === 'unread') {
+        $conversations = $conversations->filter(function($conversation) use ($user) {
+            return !$conversation->is_read && $conversation->receiver_id === $user->id;
+        });
+    } elseif ($filter === 'sent') {
+        $conversations = $conversations->filter(function($conversation) use ($user) {
+            return $conversation->sender_id === $user->id;
+        });
+    }
+
+    // Get users that can be messaged
+    $availableUsers = $this->getAvailableUsersForMessaging($user);
+
+    // Get message statistics
+    $stats = [
+        'total_messages' => Message::forUser($user->id)->count(),
+        'unread_count' => Message::getUnreadCountForUser($user->id),
+        'sent_count' => Message::where('sender_id', $user->id)->count(),
+        'received_count' => Message::where('receiver_id', $user->id)->count(),
+    ];
+
+    $viewData = [
+        'meta_title' => 'Messages | LMS',
+        'meta_desc' => 'View and send messages',
+        'meta_image' => url('assets/images/logo/logo.png'),
+        'messages' => $messages,
+        'conversations' => $conversations,
+        'availableUsers' => $availableUsers,
+        'stats' => $stats,
+        'filter' => $filter,
+        'search' => $search,
+        'conversationWith' => $conversationWith,
+        'conversationPartner' => $conversationPartner,
+    ];
+
+    return view('instructor.messages', $viewData);
+}
+
+/**
+ * Send a new message
+ */
+public function sendMessage(Request $request)
+{
+    // Add debugging
+    Log::info('Send message request received', [
+        'user_id' => Auth::id(),
+        'request_data' => $request->all()
+    ]);
+
+    try {
+        // Custom validation with detailed error messages
+        $validator = Validator::make($request->all(), [
+            'receiver_id' => 'required|string|exists:users,id',
+            'content' => 'required|string|max:5000',
+            'attachment' => 'nullable|file|max:10240|mimes:pdf,doc,docx,txt,jpg,jpeg,png,gif,mp3,mp4,wav,avi,mov,zip,rar'
+        ], [
+            'receiver_id.required' => 'Please select a recipient.',
+            'receiver_id.exists' => 'The selected recipient does not exist.',
+            'content.required' => 'Please enter a message.',
+            'content.max' => 'Message cannot exceed 5000 characters.',
+            'attachment.file' => 'The attachment must be a valid file.',
+            'attachment.max' => 'The attachment cannot exceed 10MB.',
+            'attachment.mimes' => 'The attachment must be a file of type: pdf, doc, docx, txt, jpg, jpeg, png, gif, mp3, mp4, wav, avi, mov, zip, rar.'
+        ]);
+
+        if ($validator->fails()) {
+            Log::warning('Message validation failed', [
+                'user_id' => Auth::id(),
+                'errors' => $validator->errors()->toArray()
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $user = Auth::user();
+        $receiver = User::find($request->receiver_id);
+
+        if (!$receiver) {
+            Log::error('Receiver not found', [
+                'user_id' => Auth::id(),
+                'receiver_id' => $request->receiver_id
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Recipient not found.'
+            ], 404);
+        }
+
+        // Check if user can message the receiver
+        if (!$this->canMessageUser($user, $receiver)) {
+            Log::warning('User cannot message receiver', [
+                'sender_id' => $user->id,
+                'receiver_id' => $receiver->id,
+                'sender_role' => $user->role,
+                'receiver_role' => $receiver->role
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to message this user.'
+            ], 403);
+        }
+
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            try {
+                $file = $request->file('attachment');
+                Log::info('Processing file attachment', [
+                    'original_name' => $file->getClientOriginalName(),
+                    'size' => $file->getSize(),
+                    'mime_type' => $file->getMimeType()
+                ]);
+
+                // Store the file
+                $attachmentPath = $file->store('message-attachments', 'public');
+                
+                Log::info('File stored successfully', [
+                    'path' => $attachmentPath
+                ]);
+            } catch (\Exception $e) {
+                Log::error('File upload failed', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to upload attachment: ' . $e->getMessage()
+                ], 500);
+            }
+        }
+
+        // Create the message
+        $message = Message::create([
+            'sender_id' => $user->id,
+            'receiver_id' => $request->receiver_id,
+            'receiver_role' => $receiver->role,
+            'content' => $request->content,
+            'attachment' => $attachmentPath,
+            'is_read' => false,
+        ]);
+
+        Log::info('Message created successfully', [
+            'message_id' => $message->id,
+            'has_attachment' => !empty($attachmentPath)
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Message sent successfully!',
+                'data' => [
+                    'id' => $message->id,
+                    'content' => $message->content,
+                    'created_at' => $message->formatted_date,
+                    'time_ago' => $message->time_ago,
+                    'has_attachment' => $message->hasAttachment(),
+                    'attachment_name' => $message->getAttachmentName(),
+                    'sender' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'avatar' => $user->profile_image_url ?? '/assets/images/default-avatar.png'
+                    ]
+                ]
+            ]);
+        }
+
+        return redirect()->route('instructor.messages.index', ['conversation' => $request->receiver_id])
+            ->with('success', 'Message sent successfully!');
+
+    } catch (\Exception $e) {
+        Log::error('Error sending message', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'user_id' => Auth::id(),
+            'receiver_id' => $request->receiver_id ?? null
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send message. Please try again. Error: ' . $e->getMessage()
+            ], 500);
+        }
+
+        return redirect()->back()
+            ->with('error', 'Failed to send message. Please try again.');
+    }
+}
+
+/**
+ * Mark message as read
+ */
+public function markAsRead(Request $request, $messageId)
+{
+    try {
+        $user = Auth::user();
+        $message = Message::where('id', $messageId)
+            ->where('receiver_id', $user->id)
+            ->firstOrFail();
+
+        $message->update(['is_read' => true]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Message marked as read'
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Error marking message as read', [
+            'error' => $e->getMessage(),
+            'message_id' => $messageId,
+            'user_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to mark message as read'
+        ], 500);
+    }
+}
+
+/**
+ * Mark all messages as read
+ */
+public function markAllAsRead(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $conversationWith = $request->get('conversation_with');
+        
+        if ($conversationWith) {
+            // Mark messages from specific user as read
+            $count = Message::where('receiver_id', $user->id)
+                ->where('sender_id', $conversationWith)
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+        } else {
+            // Mark all messages as read
+            $count = Message::where('receiver_id', $user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Marked {$count} messages as read",
+            'count' => $count
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Error marking messages as read', [
+            'error' => $e->getMessage(),
+            'user_id' => Auth::id()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to mark messages as read'
+        ], 500);
+    }
+}
+
+/**
+ * Delete a message
+ */
+public function deleteMessage(Request $request, $messageId)
+{
+    try {
+        $user = Auth::user();
+        $message = Message::where('id', $messageId)
+            ->where(function($q) use ($user) {
+                $q->where('sender_id', $user->id)
+                  ->orWhere('receiver_id', $user->id);
+            })
+            ->firstOrFail();
+
+        // Delete attachment if exists
+        if ($message->hasAttachment()) {
+            Storage::disk('public')->delete($message->attachment);
+        }
+
+        $message->delete();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Message deleted successfully'
+            ]);
+        }
+
+        return redirect()->route('instructor.messages.index')
+            ->with('success', 'Message deleted successfully');
+
+    } catch (\Exception $e) {
+        Log::error('Error deleting message', [
+            'error' => $e->getMessage(),
+            'message_id' => $messageId,
+            'user_id' => Auth::id()
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete message'
+            ], 500);
+        }
+
+        return redirect()->back()
+            ->with('error', 'Failed to delete message');
+    }
+}
+
+/**
+ * Get conversation messages (AJAX)
+ */
+public function getConversation(Request $request, $userId)
+{
+    try {
+        $user = Auth::user();
+        $messages = Message::conversation($user->id, $userId)
+            ->with(['sender', 'receiver'])
+            ->get();
+        
+        // Mark messages as read
+        Message::where('receiver_id', $user->id)
+            ->where('sender_id', $userId)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+
+        $conversationPartner = User::find($userId);
+
+        return response()->json([
+            'success' => true,
+            'messages' => $messages->map(function($message) use ($user) {
+                return [
+                    'id' => $message->id,
+                    'content' => $message->content,
+                    'attachment' => $message->attachment_url,
+                    'attachment_name' => $message->getAttachmentName(),
+                    'is_sender' => $message->sender_id === $user->id,
+                    'created_at' => $message->formatted_date,
+                    'time_ago' => $message->time_ago,
+                    'is_read' => $message->is_read,
+                    'sender' => [
+                        'id' => $message->sender->id,
+                        'name' => $message->sender->name,
+                        'avatar' => $message->sender->profile_image_url ?? '/assets/images/default-avatar.png'
+                    ]
+                ];
+            }),
+            'partner' => [
+                'id' => $conversationPartner->id,
+                'name' => $conversationPartner->name,
+                'avatar' => $conversationPartner->profile_image_url ?? '/assets/images/default-avatar.png',
+                'role' => ucfirst($conversationPartner->role)
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Error loading conversation', [
+            'error' => $e->getMessage(),
+            'user_id' => Auth::id(),
+            'conversation_with' => $userId
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to load conversation'
+        ], 500);
+    }
+}
+
+/**
+ * Search users for messaging (AJAX)
+ */
+public function searchUsers(Request $request)
+{
+    try {
+        $search = $request->get('search', '');
+        $user = Auth::user();
+
+        if (empty($search)) {
+            return response()->json([
+                'success' => true,
+                'users' => []
+            ]);
+        }
+
+        $availableUsers = $this->getAvailableUsersForMessaging($user);
+        
+        $filteredUsers = $availableUsers->filter(function($availableUser) use ($search) {
+            return stripos($availableUser->name, $search) !== false ||
+                   stripos($availableUser->email, $search) !== false ||
+                   stripos($availableUser->matric_or_staff_id ?? '', $search) !== false;
+        })->take(10);
+
+        return response()->json([
+            'success' => true,
+            'users' => $filteredUsers->map(function($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => ucfirst($user->role),
+                    'avatar' => $user->profile_image_url ?? '/assets/images/default-avatar.png',
+                    'display_name' => $user->name . ' (' . ucfirst($user->role) . ')'
+                ];
+            })->values()
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error searching users', [
+            'error' => $e->getMessage(),
+            'search' => $search
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to search users'
+        ], 500);
+    }
+}
+/**
+ * Get available users for messaging
+ */
+private function getAvailableUsersForMessaging(User $user)
+{
+    try {
+        $query = User::where('id', '!=', $user->id);
+
+        if ($user->role === 'instructor') {
+            // Instructors can message:
+            // 1. Students enrolled in their courses
+            // 2. Admins
+            $studentIds = CourseStudent::whereIn('course_id', 
+                $user->taughtCourses()->pluck('id')
+            )->pluck('user_id');
+
+            $query->where(function($q) use ($studentIds) {
+                $q->whereIn('id', $studentIds)
+                  ->orWhere('role', 'admin');
+            });
+        }
+
+        return $query->select('id', 'name', 'email', 'role', 'avatar', 'matric_or_staff_id')
+                    ->orderBy('role')
+                    ->orderBy('name')
+                    ->get();
+    } catch (\Exception $e) {
+        Log::error('Error getting available users', [
+            'error' => $e->getMessage(),
+            'user_id' => $user->id
+        ]);
+
+        return collect(); // Return empty collection on error
+    }
+}
+
+/**
+ * Check if user can message another user
+ */
+private function canMessageUser(User $sender, User $receiver): bool
+{
+    try {
+        if ($sender->role === 'admin') {
+            return true; // Admins can message anyone
+        }
+
+        if ($sender->role === 'instructor') {
+            // Instructors can message admins
+            if ($receiver->role === 'admin') {
+                return true;
+            }
+
+            // Instructors can message students in their courses
+            if ($receiver->role === 'student') {
+                $studentCourseIds = CourseStudent::where('user_id', $receiver->id)->pluck('course_id');
+                $instructorCourseIds = $sender->taughtCourses()->pluck('id');
+                
+                return $studentCourseIds->intersect($instructorCourseIds)->isNotEmpty();
+            }
+        }
+
+        return false;
+    } catch (\Exception $e) {
+        Log::error('Error checking message permissions', [
+            'error' => $e->getMessage(),
+            'sender_id' => $sender->id,
+            'receiver_id' => $receiver->id
+        ]);
+
+        return false; // Deny access on error
+    }
+}
+  
 }

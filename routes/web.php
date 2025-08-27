@@ -97,6 +97,15 @@ Route::middleware(['auth', 'role:instructor,lecturer'])->prefix('instructor')->n
         Route::put('/{assignment}', [InstructorController::class, 'updateAssignment'])->name('update');
         Route::delete('/{assignment}', [InstructorController::class, 'deleteAssignment'])->name('delete');
     });
+
+    // Students Management - Enhanced
+    Route::prefix('students')->name('students.')->group(function () {
+        Route::get('/', [InstructorController::class, 'viewEnrolledStudents'])->name('index');
+        Route::get('/enrolled', [InstructorController::class, 'viewEnrolledStudents'])->name('enrolled');
+        Route::post('/update-status', [InstructorController::class, 'updateStudentStatus'])->name('update-status');
+        Route::post('/remove', [InstructorController::class, 'removeStudentFromCourse'])->name('remove');
+        Route::get('/export', [InstructorController::class, 'exportEnrolledStudents'])->name('export');
+    });
     
     // Submissions Management - Fixed routes
     Route::prefix('submissions')->name('submissions.')->group(function () {
@@ -114,15 +123,15 @@ Route::middleware(['auth', 'role:instructor,lecturer'])->prefix('instructor')->n
         Route::put('/{submission}/grade', [InstructorController::class, 'gradeSubmission'])->name('update-grade');
     });
     
-    // Students Management
-    Route::prefix('students')->name('students.')->group(function () {
-        Route::get('/', [InstructorController::class, 'viewEnrolledStudents'])->name('index');
-        Route::get('/enrolled', [InstructorController::class, 'viewEnrolledStudents'])->name('enrolled');
-    });
-    
-    // Messages/Communication
+    // Messages/Communication - Complete messaging system
     Route::prefix('messages')->name('messages.')->group(function () {
         Route::get('/', [InstructorController::class, 'messages'])->name('index');
+        Route::post('/send', [InstructorController::class, 'sendMessage'])->name('send');
+        Route::post('/{message}/read', [InstructorController::class, 'markAsRead'])->name('mark-read');
+        Route::post('/mark-all-read', [InstructorController::class, 'markAllAsRead'])->name('mark-all-read');
+        Route::delete('/{message}', [InstructorController::class, 'deleteMessage'])->name('delete');
+        Route::get('/conversation/{user}', [InstructorController::class, 'getConversation'])->name('conversation');
+        Route::get('/search-users', [InstructorController::class, 'searchUsers'])->name('search-users');
     });
 });
 

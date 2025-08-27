@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
 class Course extends Model
@@ -77,6 +78,43 @@ class Course extends Model
     public function submissions()
     {
         return $this->hasManyThrough(Submission::class, Assignment::class);
+    }
+
+    /**
+     * Get all enrolled students for this course
+     */
+    public function students(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'course_student', 'course_id', 'user_id')
+                    ->withPivot(['enrolled_at', 'status'])
+                    ->withTimestamps()
+                    ->wherePivot('status', 'active');
+    }
+
+    /**
+     * Get all students (including inactive enrollments)
+     */
+    public function allStudents(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'course_student', 'course_id', 'user_id')
+                    ->withPivot(['enrolled_at', 'status'])
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get course enrollments
+     */
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(CourseStudent::class, 'course_id');
+    }
+
+    /**
+     * Get active enrollments
+     */
+    public function activeEnrollments(): HasMany
+    {
+        return $this->hasMany(CourseStudent::class, 'course_id')->where('status', 'active');
     }
 
     // ==================== MODEL EVENTS ====================
@@ -167,6 +205,77 @@ class Course extends Model
         });
     }
 
+    // ==================== ENROLLMENT METHODS ====================
+
+    /**
+     * Get enrolled students count
+     */
+    public function getEnrolledStudentsCount(): int
+    {
+        try {
+            return $this->students()->count();
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Check if a student is enrolled in this course
+     */
+    public function hasStudent($userId): bool
+    {
+        return $this->students()->where('user_id', $userId)->exists();
+    }
+
+    /**
+     * Enroll a student in this course
+     */
+    public function enrollStudent($userId, $status = 'active'): bool
+    {
+        try {
+            if (!$this->hasStudent($userId)) {
+                $this->students()->attach($userId, [
+                    'enrolled_at' => now(),
+                    'status' => $status,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                return true;
+            }
+            return false;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Unenroll a student from this course
+     */
+    public function unenrollStudent($userId): bool
+    {
+        try {
+            return $this->students()->detach($userId) > 0;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Update student enrollment status
+     */
+    public function updateStudentStatus($userId, $status): bool
+    {
+        try {
+            $this->students()->updateExistingPivot($userId, [
+                'status' => $status,
+                'updated_at' => now(),
+            ]);
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
     // ==================== ACCESSORS ====================
 
     /**
@@ -232,6 +341,7 @@ class Course extends Model
                 'pending_submissions' => $this->submissions()->where('status', 'pending')->count(),
                 'graded_submissions' => $this->submissions()->where('status', 'graded')->count(),
                 'average_grade' => $this->submissions()->where('status', 'graded')->avg('grade'),
+                'enrolled_students' => $this->getEnrolledStudentsCount(),
             ];
         } catch (\Exception $e) {
             return [
@@ -242,6 +352,7 @@ class Course extends Model
                 'pending_submissions' => 0,
                 'graded_submissions' => 0,
                 'average_grade' => null,
+                'enrolled_students' => 0,
             ];
         }
     }

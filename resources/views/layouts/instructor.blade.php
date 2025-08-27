@@ -268,9 +268,7 @@
                         <li class="sidebar-submenu__item {{ request()->routeIs('instructor.submissions.index') ? 'active' : '' }}">
                             <a href="{{ route('instructor.submissions.index') }}" class="sidebar-submenu__link {{ request()->routeIs('instructor.submissions.index') ? 'active' : '' }}">View Submissions</a>
                         </li>
-                        <li class="sidebar-submenu__item {{ request()->routeIs('instructor.submissions.grade') ? 'active' : '' }}">
-                            <a href="{{ route('instructor.submissions.grade') }}" class="sidebar-submenu__link {{ request()->routeIs('instructor.submissions.grade') ? 'active' : '' }}">Grade Assignments</a>
-                        </li>
+                        
                     </ul>
                     <!-- Submenu End -->
                 </li>
