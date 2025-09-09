@@ -169,7 +169,365 @@
         pointer-events: none;
     }
 
-  
+  /* Notification Badge */
+.notification-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    border: 2px solid white;
+    animation: pulse 2s infinite;
+}
+
+/* Shaking Animation for Notification Bell */
+@keyframes shake {
+    0%, 100% { transform: rotate(0deg); }
+    10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
+    20%, 40%, 60%, 80% { transform: rotate(10deg); }
+}
+
+.shaking-animation {
+    animation: shake 0.5s ease-in-out infinite;
+}
+
+/* Pulse Animation for Badge */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* Notification Dropdown */
+.dropdown-menu--lg {
+    min-width: 380px;
+    max-width: 420px;
+}
+
+@media (max-width: 768px) {
+    .dropdown-menu--lg {
+        min-width: 320px;
+        max-width: 350px;
+        margin-right: 10px;
+    }
+}
+
+/* Notification Items */
+.notification-item {
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border-radius: 8px;
+    margin: 4px 8px;
+}
+
+.notification-item:hover {
+    background-color: var(--gray-50, #f9fafb) !important;
+    transform: translateX(2px);
+}
+
+.notification-item:last-child {
+    border-bottom: none !important;
+}
+
+/* Unread Notification Styling */
+.bg-primary-25 {
+    background-color: rgba(99, 102, 241, 0.05) !important;
+    border-left: 3px solid var(--main-600, #6366f1);
+}
+
+/* Notification Action Buttons */
+.mark-read-btn,
+.delete-notification-btn {
+    transition: all 0.2s ease;
+    text-decoration: none !important;
+    font-weight: 500;
+}
+
+.mark-read-btn:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.delete-notification-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* Notification Loading States */
+.notification-loading {
+    color: var(--gray-500, #6b7280);
+    font-size: 14px;
+}
+
+.notification-loading .spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Notification Header Actions */
+#refreshNotifications,
+#clearAllNotifications {
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+#refreshNotifications:hover,
+#clearAllNotifications:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#refreshNotifications:disabled,
+#clearAllNotifications:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Notification Icon Containers */
+.notification-item .w-40.h-40 {
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.notification-item:hover .w-40.h-40 {
+    transform: scale(1.05);
+}
+
+/* Notification Content */
+.notification-item h6 {
+    line-height: 1.3;
+    margin-bottom: 4px;
+}
+
+.notification-item p {
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+/* Notification Time */
+.notification-item small {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+/* Empty State */
+.notification-item .text-center {
+    padding: 2rem 1rem;
+}
+
+.notification-item .text-center i {
+    opacity: 0.5;
+    margin-bottom: 0.75rem;
+}
+
+/* Notification Dropdown Animation */
+.dropdown-menu {
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Close Dropdown Button */
+.close-dropdown {
+    transition: all 0.2s ease;
+}
+
+.close-dropdown:hover {
+    transform: rotate(90deg);
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+}
+
+/* Notification Scroll */
+.max-h-400 {
+    max-height: 400px;
+}
+
+.scroll-sm::-webkit-scrollbar {
+    width: 4px;
+}
+
+.scroll-sm::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 2px;
+}
+
+.scroll-sm::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+.scroll-sm::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Notification Type Colors */
+.bg-primary-50 { background-color: rgba(99, 102, 241, 0.1) !important; }
+.bg-success-50 { background-color: rgba(34, 197, 94, 0.1) !important; }
+.bg-warning-50 { background-color: rgba(245, 158, 11, 0.1) !important; }
+.bg-danger-50 { background-color: rgba(239, 68, 68, 0.1) !important; }
+.bg-info-50 { background-color: rgba(59, 130, 246, 0.1) !important; }
+.bg-secondary-50 { background-color: rgba(107, 114, 128, 0.1) !important; }
+
+.text-primary-600 { color: #6366f1 !important; }
+.text-success-600 { color: #22c55e !important; }
+.text-warning-600 { color: #f59e0b !important; }
+.text-danger-600 { color: #ef4444 !important; }
+.text-info-600 { color: #3b82f6 !important; }
+.text-secondary-600 { color: #6b7280 !important; }
+
+/* Responsive Adjustments */
+@media (max-width: 576px) {
+    .notification-badge {
+        font-size: 9px;
+        padding: 1px 4px;
+        min-width: 16px;
+        height: 16px;
+    }
+    
+    .dropdown-menu--lg {
+        min-width: 280px;
+        max-width: 300px;
+        margin-left: -100px;
+    }
+    
+    .notification-item {
+        margin: 2px 4px;
+        padding: 12px !important;
+    }
+    
+    .notification-item .w-40.h-40 {
+        width: 32px !important;
+        height: 32px !important;
+    }
+    
+    .notification-item h6 {
+        font-size: 13px;
+    }
+    
+    .notification-item p {
+        font-size: 11px;
+    }
+}
+
+/* Loading Spinner Animations */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinner-border {
+    animation: spin 1s linear infinite;
+}
+
+/* Notification Button States */
+.refresh-loading,
+.clear-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Hover Effects for Notification Bell */
+.dropdown-btn:hover {
+    transform: scale(1.05);
+    background-color: var(--main-100, #e0e7ff) !important;
+}
+
+.dropdown-btn:active {
+    transform: scale(0.95);
+}
+
+/* Focus States for Accessibility */
+.dropdown-btn:focus,
+.mark-read-btn:focus,
+.delete-notification-btn:focus,
+#refreshNotifications:focus,
+#clearAllNotifications:focus {
+    outline: 2px solid var(--main-600, #6366f1);
+    outline-offset: 2px;
+}
+
+/* Notification Footer */
+.notification-footer {
+    background-color: var(--gray-25, #fafafa);
+    border-top: 1px solid var(--gray-100, #f3f4f6);
+}
+
+/* Error State Styling */
+.notification-error {
+    color: var(--danger-600, #ef4444);
+}
+
+.notification-error i {
+    color: var(--danger-600, #ef4444);
+}
+
+.notification-error .btn {
+    font-size: 12px;
+    padding: 4px 12px;
+}
+
+/* Success State for Actions */
+.notification-success {
+    background-color: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    color: #166534;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin: 8px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Dark Mode Support (if needed) */
+@media (prefers-color-scheme: dark) {
+    .notification-item {
+        background-color: var(--dark-bg, #1f2937);
+        color: var(--dark-text, #f9fafb);
+    }
+    
+    .notification-item:hover {
+        background-color: var(--dark-hover, #374151) !important;
+    }
+    
+    .bg-primary-25 {
+        background-color: rgba(99, 102, 241, 0.15) !important;
+    }
+}
     </style>
 </head>
 <body>
@@ -472,109 +830,495 @@
 </div>
     </div>
 
-
-    <script>
-   document.addEventListener('DOMContentLoaded', function() {
-        // Handle alert dismissal
-        document.querySelectorAll('.alert .btn-close').forEach(function(btn) {
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Notification system variables
+    let notificationInterval;
+    let isNotificationDropdownOpen = false;
+    
+    const notificationBtn = document.getElementById('notificationBtn');
+    const notificationBadge = document.getElementById('notificationBadge');
+    const notificationsList = document.getElementById('notificationsList');
+    const refreshNotificationsBtn = document.getElementById('refreshNotifications');
+    const clearAllNotificationsBtn = document.getElementById('clearAllNotifications');
+    
+    // Initialize notifications
+    loadNotifications();
+    startNotificationPolling();
+    
+    // Handle notification dropdown toggle
+    notificationBtn.addEventListener('click', function() {
+        isNotificationDropdownOpen = !isNotificationDropdownOpen;
+        if (isNotificationDropdownOpen) {
+            loadNotifications();
+        }
+    });
+    
+    // Handle dropdown close
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.dropdown')) {
+            isNotificationDropdownOpen = false;
+        }
+    });
+    
+    // Handle refresh notifications
+    refreshNotificationsBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        refreshNotifications();
+    });
+    
+    // Handle clear all notifications
+    clearAllNotificationsBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        clearAllNotifications();
+    });
+    
+    // Load notifications function
+    function loadNotifications() {
+        showNotificationLoading();
+        
+        fetch('/admin/notifications', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayNotifications(data.notifications);
+                updateNotificationBadge(data.unread_count);
+            } else {
+                showNotificationError('Failed to load notifications');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading notifications:', error);
+            showNotificationError('Error loading notifications');
+        });
+    }
+    
+    // Display notifications in the dropdown
+    function displayNotifications(notifications) {
+        if (notifications.length === 0) {
+            notificationsList.innerHTML = `
+                <div class="text-center py-32">
+                    <i class="ph ph-bell-slash text-4xl text-gray-400 mb-12"></i>
+                    <p class="text-gray-500 mb-0">No notifications yet</p>
+                    <small class="text-gray-400">You're all caught up!</small>
+                </div>
+            `;
+            return;
+        }
+        
+        let notificationsHtml = '';
+        notifications.forEach(notification => {
+            const isUnread = !notification.is_read;
+            const timeAgo = formatTimeAgo(notification.created_at);
+            const icon = getNotificationIcon(notification.type);
+            const bgClass = isUnread ? 'bg-primary-25' : '';
+            
+            notificationsHtml += `
+                <div class="notification-item ${bgClass} p-16 border-bottom border-gray-100 position-relative" data-notification-id="${notification.id}">
+                    ${isUnread ? '<span class="position-absolute top-16 end-16 w-8 h-8 bg-primary-600 rounded-circle"></span>' : ''}
+                    <div class="flex-align gap-12">
+                        <div class="w-40 h-40 bg-${getNotificationColor(notification.type)}-50 text-${getNotificationColor(notification.type)}-600 rounded-circle flex-center">
+                            <i class="${icon}"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="text-sm fw-semibold mb-4 ${isUnread ? 'text-gray-900' : 'text-gray-600'}">${notification.title}</h6>
+                            <p class="text-xs text-gray-500 mb-8">${notification.message}</p>
+                            <div class="flex-between">
+                                <small class="text-gray-400">${timeAgo}</small>
+                                <div class="flex-align gap-8">
+                                    ${isUnread ? `<button class="mark-read-btn text-xs text-primary-600 hover-text-primary-700 border-0 bg-transparent p-0" data-notification-id="${notification.id}">Mark as read</button>` : ''}
+                                    <button class="delete-notification-btn text-xs text-danger-600 hover-text-danger-700 border-0 bg-transparent p-0" data-notification-id="${notification.id}">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        notificationsList.innerHTML = notificationsHtml;
+        
+        // Add event listeners to notification actions
+        addNotificationEventListeners();
+    }
+    
+    // Add event listeners to notification buttons
+    function addNotificationEventListeners() {
+        // Mark as read buttons
+        document.querySelectorAll('.mark-read-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
-                const alert = this.closest('.alert');
-                if (alert) {
-                    alert.classList.remove('show');
-                    alert.classList.add('fade');
-                    setTimeout(() => {
-                        if (alert.parentNode) {
-                            alert.remove();
-                        }
-                    }, 300);
-                }
+                const notificationId = this.dataset.notificationId;
+                markNotificationAsRead(notificationId);
             });
         });
-
-        // Auto dismiss success alerts after 6 seconds
-        const successAlert = document.getElementById('dashboardSuccessAlert');
-        if (successAlert) {
-            setTimeout(() => {
-                if (successAlert && successAlert.parentNode) {
-                    successAlert.classList.remove('show');
-                    successAlert.classList.add('fade');
-                    setTimeout(() => {
-                        if (successAlert.parentNode) {
-                            successAlert.remove();
-                        }
-                    }, 300);
-                }
-            }, 6000);
-        }
-
-        // AJAX Logout functionality
-        const logoutBtn = document.getElementById('logoutBtn');
-        const logoutIcon = document.querySelector('.logout-icon');
-        const logoutSpinner = document.querySelector('.logout-spinner');
-        const logoutText = document.querySelector('.logout-text');
-        const logoutLoadingText = document.querySelector('.logout-loading-text');
-
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', function(e) {
+        
+        // Delete notification buttons
+        document.querySelectorAll('.delete-notification-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
                 e.preventDefault();
-                
-                // Prevent double clicks
-                if (logoutBtn.classList.contains('logout-loading')) {
-                    return;
+                const notificationId = this.dataset.notificationId;
+                deleteNotification(notificationId);
+            });
+        });
+    }
+    
+    // Mark notification as read
+    function markNotificationAsRead(notificationId) {
+        fetch('/admin/notifications/mark-read', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                notification_id: notificationId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove unread styling
+                const notificationItem = document.querySelector(`[data-notification-id="${notificationId}"]`);
+                if (notificationItem) {
+                    notificationItem.classList.remove('bg-primary-25');
+                    notificationItem.querySelector('.position-absolute.w-8.h-8')?.remove();
+                    notificationItem.querySelector('.mark-read-btn')?.remove();
+                    notificationItem.querySelector('h6').classList.remove('text-gray-900');
+                    notificationItem.querySelector('h6').classList.add('text-gray-600');
                 }
-
-                // Show loading state
-                logoutBtn.classList.add('logout-loading');
-                logoutIcon.classList.add('d-none');
-                logoutSpinner.classList.remove('d-none');
-                logoutText.classList.add('d-none');
-                logoutLoadingText.classList.remove('d-none');
-
-                // Get CSRF token
-                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-                // Make AJAX request
-                fetch('{{ route("logout.ajax") }}', {
-                    method: 'POST',
+                
+                // Update badge count
+                const currentCount = parseInt(notificationBadge.textContent) || 0;
+                updateNotificationBadge(Math.max(0, currentCount - 1));
+            }
+        })
+        .catch(error => {
+            console.error('Error marking notification as read:', error);
+        });
+    }
+    
+    // Delete notification
+    function deleteNotification(notificationId) {
+        if (!confirm('Are you sure you want to delete this notification?')) {
+            return;
+        }
+        
+        fetch(`/admin/notifications/${notificationId}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove notification from DOM
+                const notificationItem = document.querySelector(`[data-notification-id="${notificationId}"]`);
+                if (notificationItem) {
+                    notificationItem.remove();
+                }
+                
+                // Update badge if it was unread
+                if (notificationItem && notificationItem.classList.contains('bg-primary-25')) {
+                    const currentCount = parseInt(notificationBadge.textContent) || 0;
+                    updateNotificationBadge(Math.max(0, currentCount - 1));
+                }
+                
+                // Check if no notifications left
+                if (document.querySelectorAll('.notification-item').length === 0) {
+                    displayNotifications([]);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting notification:', error);
+        });
+    }
+    
+    // Refresh notifications
+    function refreshNotifications() {
+        const refreshText = refreshNotificationsBtn.querySelector('.refresh-text');
+        const refreshLoading = refreshNotificationsBtn.querySelector('.refresh-loading');
+        
+        refreshText.classList.add('d-none');
+        refreshLoading.classList.remove('d-none');
+        refreshNotificationsBtn.disabled = true;
+        
+        loadNotifications();
+        
+        setTimeout(() => {
+            refreshText.classList.remove('d-none');
+            refreshLoading.classList.add('d-none');
+            refreshNotificationsBtn.disabled = false;
+        }, 1000);
+    }
+    
+    // Clear all notifications
+    function clearAllNotifications() {
+        if (!confirm('Are you sure you want to clear all notifications?')) {
+            return;
+        }
+        
+        const clearText = clearAllNotificationsBtn.querySelector('.clear-text');
+        const clearLoading = clearAllNotificationsBtn.querySelector('.clear-loading');
+        
+        clearText.classList.add('d-none');
+        clearLoading.classList.remove('d-none');
+        clearAllNotificationsBtn.disabled = true;
+        
+        fetch('/admin/notifications/clear-all', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayNotifications([]);
+                updateNotificationBadge(0);
+            }
+        })
+        .catch(error => {
+            console.error('Error clearing notifications:', error);
+        })
+        .finally(() => {
+            clearText.classList.remove('d-none');
+            clearLoading.classList.add('d-none');
+            clearAllNotificationsBtn.disabled = false;
+        });
+    }
+    
+    // Update notification badge
+    function updateNotificationBadge(count) {
+        if (count > 0) {
+            notificationBadge.textContent = count > 99 ? '99+' : count;
+            notificationBadge.classList.remove('d-none');
+            notificationBtn.classList.add('shaking-animation');
+        } else {
+            notificationBadge.classList.add('d-none');
+            notificationBtn.classList.remove('shaking-animation');
+        }
+    }
+    
+    // Show loading state
+    function showNotificationLoading() {
+        notificationsList.innerHTML = `
+            <div class="notification-loading text-center py-24">
+                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                Loading notifications...
+            </div>
+        `;
+    }
+    
+    // Show error state
+    function showNotificationError(message) {
+        notificationsList.innerHTML = `
+            <div class="text-center py-32">
+                <i class="ph ph-warning-circle text-4xl text-danger mb-12"></i>
+                <p class="text-danger mb-0">${message}</p>
+                <button class="btn btn-sm btn-outline-primary mt-12" onclick="loadNotifications()">Try Again</button>
+            </div>
+        `;
+    }
+    
+    // Start polling for new notifications
+    function startNotificationPolling() {
+        notificationInterval = setInterval(() => {
+            if (!isNotificationDropdownOpen) {
+                // Only update badge count when dropdown is closed
+                fetch('/admin/notifications/count', {
+                    method: 'GET',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': token,
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'same-origin'
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Show success message briefly before redirect
-                        console.log('Logout successful:', data.message);
-                        
-                        // Redirect to login page
-                        window.location.href = data.redirect;
-                    } else {
-                        throw new Error(data.message || 'Logout failed');
+                        updateNotificationBadge(data.unread_count);
                     }
                 })
                 .catch(error => {
-                    console.error('Logout error:', error);
-                    
-                    // Reset loading state
-                    logoutBtn.classList.remove('logout-loading');
-                    logoutIcon.classList.remove('d-none');
-                    logoutSpinner.classList.add('d-none');
-                    logoutText.classList.remove('d-none');
-                    logoutLoadingText.classList.add('d-none');
-                    
-                    // Show error message
-                    alert('Logout failed. Please try again.');
+                    console.error('Error polling notifications:', error);
                 });
-            });
+            }
+        }, 30000); // Poll every 30 seconds
+    }
+    
+    // Helper functions
+    function getNotificationIcon(type) {
+        const icons = {
+            'user_created': 'ph-user-plus',
+            'course_created': 'ph-book',
+            'assignment_created': 'ph-clipboard-text',
+            'assignment_submitted': 'ph-file-arrow-up',
+            'material_uploaded': 'ph-file-plus',
+            'system': 'ph-gear',
+            'warning': 'ph-warning',
+            'info': 'ph-info',
+            'success': 'ph-check-circle',
+            'error': 'ph-x-circle'
+        };
+        return icons[type] || 'ph-bell';
+    }
+    
+    function getNotificationColor(type) {
+        const colors = {
+            'user_created': 'primary',
+            'course_created': 'success',
+            'assignment_created': 'warning',
+            'assignment_submitted': 'info',
+            'material_uploaded': 'secondary',
+            'system': 'primary',
+            'warning': 'warning',
+            'info': 'info',
+            'success': 'success',
+            'error': 'danger'
+        };
+        return colors[type] || 'primary';
+    }
+    
+    function formatTimeAgo(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) {
+            return 'Just now';
+        } else if (diffInSeconds < 3600) {
+            const minutes = Math.floor(diffInSeconds / 60);
+            return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+        } else if (diffInSeconds < 86400) {
+            const hours = Math.floor(diffInSeconds / 3600);
+            return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+        } else if (diffInSeconds < 604800) {
+            const days = Math.floor(diffInSeconds / 86400);
+            return `${days} day${days > 1 ? 's' : ''} ago`;
+        } else {
+            return date.toLocaleDateString();
         }
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (notificationInterval) {
+            clearInterval(notificationInterval);
+        }
+    });
 
-   
+    // Handle alert dismissal
+    document.querySelectorAll('.alert .btn-close').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const alert = this.closest('.alert');
+            if (alert) {
+                alert.classList.remove('show');
+                alert.classList.add('fade');
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.remove();
+                    }
+                }, 300);
+            }
+        });
+    });
+
+    // Auto dismiss success alerts after 6 seconds
+    const successAlert = document.getElementById('dashboardSuccessAlert');
+    if (successAlert) {
+        setTimeout(() => {
+            if (successAlert && successAlert.parentNode) {
+                successAlert.classList.remove('show');
+                successAlert.classList.add('fade');
+                setTimeout(() => {
+                    if (successAlert.parentNode) {
+                        successAlert.remove();
+                    }
+                }, 300);
+            }
+        }, 6000);
+    }
+
+    // AJAX Logout functionality
+    const logoutBtn = document.getElementById('logoutBtn');
+    const logoutIcon = document.querySelector('.logout-icon');
+    const logoutSpinner = document.querySelector('.logout-spinner');
+    const logoutText = document.querySelector('.logout-text');
+    const logoutLoadingText = document.querySelector('.logout-loading-text');
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Prevent double clicks
+            if (logoutBtn.classList.contains('logout-loading')) {
+                return;
+            }
+
+            // Show loading state
+            logoutBtn.classList.add('logout-loading');
+            logoutIcon.classList.add('d-none');
+            logoutSpinner.classList.remove('d-none');
+            logoutText.classList.add('d-none');
+            logoutLoadingText.classList.remove('d-none');
+
+            // Get CSRF token
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            // Make AJAX request
+            fetch('{{ route("logout.ajax") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message briefly before redirect
+                    console.log('Logout successful:', data.message);
+                    
+                    // Redirect to login page
+                    window.location.href = data.redirect;
+                } else {
+                    throw new Error(data.message || 'Logout failed');
+                }
+            })
+            .catch(error => {
+                console.error('Logout error:', error);
+                
+                // Reset loading state
+                logoutBtn.classList.remove('logout-loading');
+                logoutIcon.classList.remove('d-none');
+                logoutSpinner.classList.add('d-none');
+                logoutText.classList.remove('d-none');
+                logoutLoadingText.classList.add('d-none');
+                
+                // Show error message
+                alert('Logout failed. Please try again.');
+            });
+        });
+    }
 });
-    </script>
+</script>
+
         <!-- Jquery js -->
     <script src="{{ url('assets/js/jquery-3.7.1.min.js?v=' .env("CACHE_VERSION")) }}"></script>
     <!-- Bootstrap Bundle Js -->

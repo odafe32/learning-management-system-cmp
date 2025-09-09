@@ -15,19 +15,401 @@ use App\Models\Message;
 
 class AdminController extends Controller
 {
-    public function Dashboard()
-    {
+
+    /**
+ * Get notifications for admin
+ */
+public function getNotifications(Request $request)
+{
+    try {
         $user = Auth::user();
-
-        $viewData = [
-           'meta_title'=> 'Dashboard | LMS Dashboard',
-           'meta_desc'=> 'Learning management system',
-           'meta_image'=> url('pwa_assets/android-chrome-256x256.png'),
-           'user' => $user,
-        ];
-
-        return view('admin.dashboard', $viewData);
+        $limit = $request->get('limit', 20);
+        
+        // Get notifications for admin (system notifications, user activities, etc.)
+        $notifications = collect([
+            // Recent user registrations
+            ...User::latest()
+                ->take(5)
+                ->get()
+                ->map(function($newUser) {
+                    return [
+                        'id' => 'user_' . $newUser->id,
+                        'type' => 'user_created',
+                        'title' => 'New User Registered',
+                        'message' => "{$newUser->name} ({$newUser->getRoleDisplayName()}) has joined the platform",
+                        'is_read' => false,
+                        'created_at' => $newUser->created_at->toISOString(),
+                        'data' => [
+                            'user_id' => $newUser->id,
+                            'user_name' => $newUser->name,
+                            'user_role' => $newUser->role
+                        ]
+                    ];
+                }),
+            
+            // Recent course creations
+            ...Course::with('instructor')
+                ->latest()
+                ->take(3)
+                ->get()
+                ->map(function($course) {
+                    return [
+                        'id' => 'course_' . $course->id,
+                        'type' => 'course_created',
+                        'title' => 'New Course Created',
+                        'message' => "Course '{$course->title}' was created by {$course->instructor->name}",
+                        'is_read' => false,
+                        'created_at' => $course->created_at->toISOString(),
+                        'data' => [
+                            'course_id' => $course->id,
+                            'course_title' => $course->title,
+                            'instructor_name' => $course->instructor->name
+                        ]
+                    ];
+                }),
+            
+            // Recent assignments
+            ...Assignment::with(['instructor', 'course'])
+                ->latest()
+                ->take(3)
+                ->get()
+                ->map(function($assignment) {
+                    return [
+                        'id' => 'assignment_' . $assignment->id,
+                        'type' => 'assignment_created',
+                        'title' => 'New Assignment Created',
+                        'message' => "Assignment '{$assignment->title}' was created for {$assignment->course->title}",
+                        'is_read' => false,
+                        'created_at' => $assignment->created_at->toISOString(),
+                        'data' => [
+                            'assignment_id' => $assignment->id,
+                            'assignment_title' => $assignment->title,
+                            'course_title' => $assignment->course->title
+                        ]
+                    ];
+                }),
+            
+            // Recent materials
+            ...Material::with(['instructor', 'course'])
+                ->latest()
+                ->take(3)
+                ->get()
+                ->map(function($material) {
+                    return [
+                        'id' => 'material_' . $material->id,
+                        'type' => 'material_uploaded',
+                        'title' => 'New Material Uploaded',
+                        'message' => "Material '{$material->title}' was uploaded to {$material->course->title}",
+                        'is_read' => false,
+                        'created_at' => $material->uploaded_at->toISOString(),
+                        'data' => [
+                            'material_id' => $material->id,
+                            'material_title' => $material->title,
+                            'course_title' => $material->course->title
+                        ]
+                    ];
+                }),
+            
+            // System notifications
+            [
+                'id' => 'system_1',
+                'type' => 'system',
+                'title' => 'System Status',
+                'message' => 'All systems are running normally',
+                'is_read' => true,
+                'created_at' => now()->subHours(2)->toISOString(),
+                'data' => []
+            ],
+            
+            // Sample overdue assignments notification
+            [
+                'id' => 'warning_1',
+                'type' => 'warning',
+                'title' => 'Overdue Assignments',
+                'message' => Assignment::where('deadline', '<', now())->where('status', 'active')->count() . ' assignments are overdue',
+                'is_read' => false,
+                'created_at' => now()->subHour()->toISOString(),
+                'data' => []
+            ]
+        ]);
+        
+        // Sort by created_at and limit
+        $notifications = $notifications->sortByDesc('created_at')->take($limit)->values();
+        
+        // Count unread notifications
+        $unreadCount = $notifications->where('is_read', false)->count();
+        
+        return response()->json([
+            'success' => true,
+            'notifications' => $notifications,
+            'unread_count' => $unreadCount,
+            'total_count' => $notifications->count()
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('Failed to get notifications', [
+            'admin_id' => Auth::id(),
+            'error' => $e->getMessage()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to load notifications'
+        ], 500);
     }
+}
+
+/**
+ * Get notification count only
+ */
+public function getNotificationCount()
+{
+    try {
+        // For demo purposes, calculate unread count based on recent activities
+        $unreadCount = 0;
+        
+        // Count recent users (last 24 hours)
+        $unreadCount += User::where('created_at', '>=', now()->subDay())->count();
+        
+        // Count recent courses (last 24 hours)
+        $unreadCount += Course::where('created_at', '>=', now()->subDay())->count();
+        
+        // Count recent assignments (last 24 hours)
+        $unreadCount += Assignment::where('created_at', '>=', now()->subDay())->count();
+        
+        // Count overdue assignments
+        $unreadCount += Assignment::where('deadline', '<', now())->where('status', 'active')->count();
+        
+        return response()->json([
+            'success' => true,
+            'unread_count' => min($unreadCount, 99) // Cap at 99 for display
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('Failed to get notification count', [
+            'admin_id' => Auth::id(),
+            'error' => $e->getMessage()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'unread_count' => 0
+        ]);
+    }
+}
+
+/**
+ * Mark notification as read
+ */
+public function markNotificationAsRead(Request $request)
+{
+    try {
+        $notificationId = $request->input('notification_id');
+        
+        // In a real implementation, you would update the notification in the database
+        // For now, we'll just return success
+        
+        Log::info('Notification marked as read', [
+            'admin_id' => Auth::id(),
+            'notification_id' => $notificationId
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Notification marked as read'
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('Failed to mark notification as read', [
+            'admin_id' => Auth::id(),
+            'error' => $e->getMessage()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to mark notification as read'
+        ], 500);
+    }
+}
+
+/**
+ * Clear all notifications
+ */
+public function clearAllNotifications()
+{
+    try {
+        // In a real implementation, you would mark all notifications as read in the database
+        
+        Log::info('All notifications cleared', [
+            'admin_id' => Auth::id()
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'All notifications cleared'
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('Failed to clear all notifications', [
+            'admin_id' => Auth::id(),
+            'error' => $e->getMessage()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to clear notifications'
+        ], 500);
+    }
+}
+
+/**
+ * Delete a specific notification
+ */
+public function deleteNotification($notificationId)
+{
+    try {
+        // In a real implementation, you would delete the notification from the database
+        
+        Log::info('Notification deleted', [
+            'admin_id' => Auth::id(),
+            'notification_id' => $notificationId
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Notification deleted'
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('Failed to delete notification', [
+            'admin_id' => Auth::id(),
+            'notification_id' => $notificationId,
+            'error' => $e->getMessage()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to delete notification'
+        ], 500);
+    }
+}
+  public function Dashboard()
+{
+    $user = Auth::user();
+
+    // Get user statistics
+    $userStats = [
+        'total' => User::count(),
+        'students' => User::where('role', User::ROLE_STUDENT)->count(),
+        'instructors' => User::whereIn('role', [User::ROLE_INSTRUCTOR, User::ROLE_LECTURER])->count(),
+        'admins' => User::where('role', User::ROLE_ADMIN)->count(),
+        'new_this_week' => User::whereDate('created_at', '>=', now()->subDays(7))->count(),
+    ];
+
+    // Get course statistics
+    $courseStats = [
+        'total' => Course::count(),
+        'active' => Course::where('status', 'active')->count(),
+        'draft' => Course::where('status', 'draft')->count(),
+        'inactive' => Course::where('status', 'inactive')->count(),
+        'by_level' => [
+            '100' => Course::where('level', '100')->count(),
+            '200' => Course::where('level', '200')->count(),
+            '300' => Course::where('level', '300')->count(),
+            '400' => Course::where('level', '400')->count(),
+        ],
+        'by_category' => [
+            'cmp' => Course::where('code', 'like', 'CMP%')->count(),
+            'sta' => Course::where('code', 'like', 'STA%')->count(),
+            'other' => Course::where('code', 'not like', 'CMP%')
+                            ->where('code', 'not like', 'STA%')->count(),
+        ]
+    ];
+
+    // Get assignment statistics
+    $assignmentStats = [
+        'total' => Assignment::count(),
+        'active' => Assignment::where('status', 'active')->count(),
+        'draft' => Assignment::where('status', 'draft')->count(),
+        'archived' => Assignment::where('status', 'archived')->count(),
+        'overdue' => Assignment::where('deadline', '<', now())
+                              ->where('status', 'active')->count(),
+        'due_today' => Assignment::whereDate('deadline', today())->count(),
+        'due_this_week' => Assignment::whereBetween('deadline', [now(), now()->addWeek()])->count(),
+    ];
+
+    // Get material statistics
+    $materialStats = [
+        'total' => Material::count(),
+        'public' => Material::where('visibility', 'public')->count(),
+        'enrolled' => Material::where('visibility', 'enrolled')->count(),
+        'private' => Material::where('visibility', 'private')->count(),
+        'total_size_kb' => Material::sum('file_size'), // in KB
+        'total_size_mb' => round(Material::sum('file_size') / 1024, 1), // in MB
+    ];
+
+    // Get recent users (last 5)
+    $recentUsers = User::with(['courses' => function($query) {
+                        $query->select('id', 'user_id', 'title', 'code');
+                    }])
+                    ->latest()
+                    ->take(5)
+                    ->get(['id', 'name', 'email', 'role', 'department', 'created_at']);
+
+    // Get recent courses (last 5)
+    $recentCourses = Course::with(['instructor:id,name'])
+                          ->latest()
+                          ->take(5)
+                          ->get(['id', 'title', 'code', 'description', 'level', 'status', 'user_id', 'created_at']);
+
+    // Get recent assignments (last 5)
+    $recentAssignments = Assignment::with(['instructor:id,name', 'course:id,title,code'])
+                                 ->latest()
+                                 ->take(5)
+                                 ->get(['id', 'title', 'deadline', 'status', 'user_id', 'course_id', 'created_at']);
+
+    // System information
+    $systemInfo = [
+        'laravel_version' => app()->version(),
+        'php_version' => PHP_VERSION,
+        'database_status' => 'online', // You can add actual database health check here
+        'storage_status' => 'available', // You can add actual storage check here
+    ];
+
+    // Activity summary for the current month
+    $monthlyActivity = [
+        'new_users' => User::whereMonth('created_at', now()->month)
+                          ->whereYear('created_at', now()->year)
+                          ->count(),
+        'new_courses' => Course::whereMonth('created_at', now()->month)
+                              ->whereYear('created_at', now()->year)
+                              ->count(),
+        'new_assignments' => Assignment::whereMonth('created_at', now()->month)
+                                     ->whereYear('created_at', now()->year)
+                                     ->count(),
+        'new_materials' => Material::whereMonth('uploaded_at', now()->month)
+                                 ->whereYear('uploaded_at', now()->year)
+                                 ->count(),
+    ];
+
+    $viewData = [
+        'metaTitle' => 'Dashboard | LMS Admin Panel',
+        'metaDesc' => 'Learning Management System - Admin Dashboard with comprehensive statistics and system overview',
+        'metaImage' => url('pwa_assets/android-chrome-256x256.png'),
+        'user' => $user,
+        'userStats' => $userStats,
+        'courseStats' => $courseStats,
+        'assignmentStats' => $assignmentStats,
+        'materialStats' => $materialStats,
+        'recentUsers' => $recentUsers,
+        'recentCourses' => $recentCourses,
+        'recentAssignments' => $recentAssignments,
+        'systemInfo' => $systemInfo,
+        'monthlyActivity' => $monthlyActivity,
+    ];
+
+    return view('admin.dashboard', $viewData);
+}
 
     public function Showusers(Request $request)
     {

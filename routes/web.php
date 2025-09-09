@@ -207,6 +207,15 @@ Route::prefix('messages')->name('messages.')->group(function () {
         Route::put('/update', [AdminController::class, 'updateSettings'])->name('update');
     });
     
+     // Notification Routes
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [AdminController::class, 'getNotifications'])->name('index');
+        Route::get('/count', [AdminController::class, 'getNotificationCount'])->name('count');
+        Route::post('/mark-read', [AdminController::class, 'markNotificationAsRead'])->name('mark-read');
+        Route::post('/clear-all', [AdminController::class, 'clearAllNotifications'])->name('clear-all');
+        Route::delete('/{notification}', [AdminController::class, 'deleteNotification'])->name('delete');
+    });
+
     // Reports and Analytics
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [AdminController::class, 'reports'])->name('index');
