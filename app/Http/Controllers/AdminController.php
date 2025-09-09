@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Course;
 use App\Models\Assignment;
 use App\Models\Material;
+use App\Models\Message;
 
 class AdminController extends Controller
 {
@@ -1745,17 +1746,272 @@ public function exportMaterials(Request $request)
 
     return response()->stream($callback, 200, $headers);
 }
-    public function messages()
-    {
-        $user = Auth::user();
-        $viewData = [
-           'metaTitle'=> 'Messages | LMS Dashboard',
-           'metaDesc'=> 'Learning management system',
-           'metaImage'=> url('pwa_assets/android-chrome-256x256.png'),
-           'user' => $user,
-        ];
-        return view('admin.messages', $viewData);
+ /**
+ * Show admin messages with conversations and filtering
+ */
+public function messages(Request $request)
+{
+    $user = Auth::user();
+    
+    // Get filter parameters
+    $filter = $request->get('filter', 'all'); // all, unread, sent
+    $search = $request->get('search');
+    $conversationWith = $request->get('conversation');
+    
+    // Get message statistics
+    $stats = [
+        'total_messages' => Message::forUser($user->id)->count(),
+        'unread_count' => Message::where('receiver_id', $user->id)->unread()->count(),
+        'sent_count' => Message::where('sender_id', $user->id)->count(),
+        'received_count' => Message::where('receiver_id', $user->id)->count(),
+    ];
+    
+    // Build conversations query
+    $conversationsQuery = Message::forUser($user->id)
+        ->with(['sender', 'receiver'])
+        ->orderBy('created_at', 'desc');
+    
+    // Apply filters
+    if ($filter === 'unread') {
+        $conversationsQuery->where('receiver_id', $user->id)->unread();
+    } elseif ($filter === 'sent') {
+        $conversationsQuery->where('sender_id', $user->id);
     }
+    
+    // Apply search
+    if ($search) {
+        $conversationsQuery->where(function($q) use ($search, $user) {
+            $q->where('content', 'like', "%{$search}%")
+              ->orWhereHas('sender', function($sq) use ($search) {
+                  $sq->where('name', 'like', "%{$search}%");
+              })
+              ->orWhereHas('receiver', function($sq) use ($search) {
+                  $sq->where('name', 'like', "%{$search}%");
+              });
+        });
+    }
+    
+    // Get conversations and group by conversation partner
+    $allMessages = $conversationsQuery->get();
+    $conversations = collect();
+    $seenPartners = [];
+    
+    foreach ($allMessages as $message) {
+        $partnerId = $message->sender_id === $user->id ? $message->receiver_id : $message->sender_id;
+        
+        if (!in_array($partnerId, $seenPartners)) {
+            $conversations->push($message);
+            $seenPartners[] = $partnerId;
+        }
+    }
+    
+    // Get conversation partner and messages if viewing specific conversation
+    $conversationPartner = null;
+    $messages = collect();
+    
+    if ($conversationWith) {
+        $conversationPartner = User::find($conversationWith);
+        if ($conversationPartner) {
+            $messages = Message::conversation($user->id, $conversationWith)
+                ->with(['sender', 'receiver'])
+                ->get();
+            
+            // Mark messages as read
+            Message::where('sender_id', $conversationWith)
+                ->where('receiver_id', $user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+        }
+    }
+    
+    // Get available users for new conversations (students, instructors, lecturers, other admins)
+    $availableUsers = User::where('id', '!=', $user->id)
+        ->whereIn('role', [User::ROLE_STUDENT, User::ROLE_INSTRUCTOR, User::ROLE_LECTURER, User::ROLE_ADMIN])
+        ->orderBy('role')
+        ->orderBy('name')
+        ->get(['id', 'name', 'email', 'role', 'avatar']);
+    
+    $viewData = [
+        'metaTitle' => 'Messages | LMS Dashboard',
+        'metaDesc' => 'Learning management system - Admin Messages',
+        'metaImage' => url('pwa_assets/android-chrome-256x256.png'),
+        'user' => $user,
+        'conversations' => $conversations,
+        'messages' => $messages,
+        'conversationPartner' => $conversationPartner,
+        'conversationWith' => $conversationWith,
+        'stats' => $stats,
+        'filter' => $filter,
+        'search' => $search,
+        'availableUsers' => $availableUsers,
+    ];
+    
+    return view('admin.messages', $viewData);
+}
+
+/**
+ * Send a message
+ */
+public function sendMessage(Request $request)
+{
+    try {
+        $user = Auth::user();
+        
+        // Validation rules
+        $rules = [
+            'receiver_id' => ['required', 'exists:users,id'],
+            'content' => ['required', 'string', 'max:5000'],
+            'attachment' => ['nullable', 'file', 'max:10240'], // 10MB max
+        ];
+        
+        $messages = [
+            'receiver_id.required' => 'Please select a recipient.',
+            'receiver_id.exists' => 'Selected recipient does not exist.',
+            'content.required' => 'Message content is required.',
+            'content.max' => 'Message content cannot exceed 5000 characters.',
+            'attachment.file' => 'Attachment must be a valid file.',
+            'attachment.max' => 'Attachment size cannot exceed 10MB.',
+        ];
+        
+        $validatedData = $request->validate($rules, $messages);
+        
+        // Get receiver
+        $receiver = User::findOrFail($validatedData['receiver_id']);
+        
+        // Prevent sending message to self
+        if ($receiver->id === $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot send a message to yourself.'
+            ], 400);
+        }
+        
+        // Handle file attachment
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            
+            // Validate file type
+            $allowedMimes = [
+                'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'gif', 
+                'mp3', 'mp4', 'wav', 'avi', 'mov', 'zip', 'rar'
+            ];
+            
+            $fileExtension = $file->getClientOriginalExtension();
+            if (!in_array(strtolower($fileExtension), $allowedMimes)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid file type. Allowed types: ' . implode(', ', $allowedMimes)
+                ], 400);
+            }
+            
+            // Store file
+            $attachmentPath = $file->store('message_attachments', 'public');
+        }
+        
+        // Create message
+        $message = Message::create([
+            'sender_id' => $user->id,
+            'receiver_id' => $receiver->id,
+            'receiver_role' => $receiver->role,
+            'content' => $validatedData['content'],
+            'attachment' => $attachmentPath,
+            'is_read' => false,
+        ]);
+        
+        // Load relationships for response
+        $message->load(['sender', 'receiver']);
+        
+        Log::info('Message sent by admin', [
+            'admin_id' => $user->id,
+            'receiver_id' => $receiver->id,
+            'receiver_role' => $receiver->role,
+            'has_attachment' => !empty($attachmentPath),
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Message sent successfully!',
+            'data' => [
+                'id' => $message->id,
+                'content' => $message->content,
+                'time_ago' => $message->time_ago,
+                'has_attachment' => $message->hasAttachment(),
+                'attachment_name' => $message->getAttachmentName(),
+            ]
+        ]);
+        
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Validation failed.',
+            'errors' => $e->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        Log::error('Failed to send message', [
+            'admin_id' => Auth::id(),
+            'error' => $e->getMessage(),
+            'request_data' => $request->except(['attachment'])
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to send message. Please try again.'
+        ], 500);
+    }
+}
+
+
+
+
+/**
+ * Delete a message
+ */
+public function deleteMessage(Request $request, Message $message)
+{
+    try {
+        $user = Auth::user();
+        
+        // Check if user owns the message (sender or receiver)
+        if ($message->sender_id !== $user->id && $message->receiver_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to delete this message.'
+            ], 403);
+        }
+        
+        // Delete attachment if exists
+        if ($message->hasAttachment()) {
+            $message->deleteAttachment();
+        }
+        
+        $message->delete();
+        
+        Log::info('Message deleted by admin', [
+            'admin_id' => $user->id,
+            'message_id' => $message->id,
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Message deleted successfully.'
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('Failed to delete message', [
+            'admin_id' => Auth::id(),
+            'message_id' => $message->id ?? null,
+            'error' => $e->getMessage()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to delete message.'
+        ], 500);
+    }
+}
+
+
 /**
  * Show admin profile page
  */
@@ -1917,6 +2173,136 @@ public function updatePassword(Request $request)
                        ->with('error', 'Failed to update password. Please try again.');
     }
 }
+/**
+ * Mark messages as read
+ */
+public function markAsRead(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $messageIds = $request->input('message_ids', []);
+        
+        if (empty($messageIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No messages specified.'
+            ], 400);
+        }
+        
+        $updated = Message::whereIn('id', $messageIds)
+            ->where('receiver_id', $user->id)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Marked {$updated} message(s) as read.",
+            'updated_count' => $updated
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('Failed to mark messages as read', [
+            'admin_id' => Auth::id(),
+            'error' => $e->getMessage()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to mark messages as read.'
+        ], 500);
+    }
+}
 
+/**
+ * Mark all messages as read
+ */
+public function markAllAsRead(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $conversationWith = $request->input('conversation_with');
+        
+        $query = Message::where('receiver_id', $user->id)->where('is_read', false);
+        
+        if ($conversationWith) {
+            $query->where('sender_id', $conversationWith);
+        }
+        
+        $updated = $query->update(['is_read' => true]);
+        
+        $message = $conversationWith 
+            ? "Marked all messages in conversation as read."
+            : "Marked all messages as read.";
+        
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'updated_count' => $updated
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('Failed to mark all messages as read', [
+            'admin_id' => Auth::id(),
+            'error' => $e->getMessage()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to mark messages as read.'
+        ], 500);
+    }
+}
+
+/**
+ * Get message statistics for admin dashboard
+ */
+public function getMessageStats()
+{
+    $user = Auth::user();
+    
+    $stats = [
+        'total_messages' => Message::forUser($user->id)->count(),
+        'unread_count' => Message::where('receiver_id', $user->id)->unread()->count(),
+        'sent_count' => Message::where('sender_id', $user->id)->count(),
+        'received_count' => Message::where('receiver_id', $user->id)->count(),
+        'conversations_count' => Message::getConversationsForUser($user->id)->count(),
+    ];
+    
+    return response()->json([
+        'success' => true,
+        'data' => $stats
+    ]);
+}
+
+/**
+ * View a specific message
+ */
+public function viewMessage(Message $message)
+{
+    $user = Auth::user();
+    
+    // Check if user has permission to view this message
+    if ($message->sender_id !== $user->id && $message->receiver_id !== $user->id) {
+        abort(403, 'You do not have permission to view this message.');
+    }
+    
+    // Mark as read if user is the receiver
+    if ($message->receiver_id === $user->id && !$message->is_read) {
+        $message->markAsRead();
+    }
+    
+    // Load relationships
+    $message->load(['sender', 'receiver']);
+    
+    $viewData = [
+        'metaTitle' => 'Message Details | LMS Dashboard',
+        'metaDesc' => 'Learning management system - Message Details',
+        'metaImage' => url('pwa_assets/android-chrome-256x256.png'),
+        'user' => $user,
+        'message' => $message,
+    ];
+    
+    return view('admin.message-details', $viewData);
+}
 
 }

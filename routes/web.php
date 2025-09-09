@@ -184,14 +184,16 @@ Route::prefix('materials')->name('materials.')->group(function () {
     Route::delete('/{material}', [AdminController::class, 'deleteMaterial'])->name('delete');
     Route::get('/export', [AdminController::class, 'exportMaterials'])->name('export');
 });
-    // Messages Management
-    Route::prefix('messages')->name('messages.')->group(function () {
-        Route::get('/', [AdminController::class, 'messages'])->name('index');
-        Route::get('/{message}', [AdminController::class, 'viewMessage'])->name('show');
-        Route::delete('/{message}', [AdminController::class, 'deleteMessage'])->name('delete');
-        Route::post('/send', [AdminController::class, 'sendMessage'])->name('send');
-    });
-    
+// Messages Management - Enhanced
+Route::prefix('messages')->name('messages.')->group(function () {
+    Route::get('/', [AdminController::class, 'messages'])->name('index');
+    Route::post('/send', [AdminController::class, 'sendMessage'])->name('send');
+    Route::post('/mark-as-read', [AdminController::class, 'markAsRead'])->name('mark-as-read');
+    Route::post('/mark-all-read', [AdminController::class, 'markAllAsRead'])->name('mark-all-read');
+    Route::get('/stats', [AdminController::class, 'getMessageStats'])->name('stats');
+    Route::get('/{message}', [AdminController::class, 'viewMessage'])->name('show');
+    Route::delete('/{message}', [AdminController::class, 'deleteMessage'])->name('delete');
+});
     // Profile Management
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [AdminController::class, 'profile'])->name('index');
