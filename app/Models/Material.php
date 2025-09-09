@@ -133,7 +133,7 @@ class Material extends Model
     {
         if (!$this->file_size) return 'Unknown';
         
-        $bytes = $this->file_size * 1024; // Convert KB to bytes
+        $bytes = $this->file_size * 1024; 
         $units = ['B', 'KB', 'MB', 'GB'];
         
         for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {

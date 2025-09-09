@@ -54,6 +54,16 @@ Route::middleware(['auth', 'role:instructor,lecturer'])->prefix('instructor')->n
     Route::put('/profile', [InstructorController::class, 'updateProfile'])->name('profile.update');
     Route::put('/profile/password', [InstructorController::class, 'updatePassword'])->name('profile.password');
     
+    // Notifications - New routes
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [InstructorController::class, 'getNotifications'])->name('index');
+        Route::post('/mark-read', [InstructorController::class, 'markNotificationRead'])->name('mark-read');
+        Route::post('/clear-all', [InstructorController::class, 'clearAllNotifications'])->name('clear-all');
+    });
+    
+    // Add a direct route for AJAX calls
+    Route::get('/notifications', [InstructorController::class, 'getNotifications'])->name('notifications');
+    
     // Courses - Complete CRUD
     Route::prefix('courses')->name('courses.')->group(function () {
         Route::get('/', [InstructorController::class, 'manageCourses'])->name('index');
@@ -139,24 +149,69 @@ Route::middleware(['auth', 'role:instructor,lecturer'])->prefix('instructor')->n
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'Dashboard'])->name('dashboard');
     
-    // User Management
+    // User Management - Complete CRUD
     Route::prefix('users')->name('users.')->group(function () {
-        Route::get('/', [AdminController::class, 'users'])->name('index');
+        Route::get('/', [AdminController::class, 'Showusers'])->name('index');
+        Route::get('/create', [AdminController::class, 'Createusers'])->name('create');
+        Route::post('/store', [AdminController::class, 'storeUser'])->name('store');
+        Route::delete('/delete', [AdminController::class, 'deleteUser'])->name('delete');
+        Route::get('/{user}/edit', [AdminController::class, 'editUser'])->name('edit');
+        Route::put('/{user}', [AdminController::class, 'updateUser'])->name('update');
+        Route::get('/export', [AdminController::class, 'exportUsers'])->name('export');
+        Route::post('/bulk-action', [AdminController::class, 'bulkAction'])->name('bulk-action');
     });
     
-    // Course Management
-    Route::prefix('courses')->name('courses.')->group(function () {
-        Route::get('/', [AdminController::class, 'courses'])->name('index');
+// Course Management
+Route::prefix('courses')->name('courses.')->group(function () {
+    Route::get('/', [AdminController::class, 'courses'])->name('index');
+    Route::get('/{course}', [AdminController::class, 'viewCourse'])->name('show');
+    Route::delete('/{course}', [AdminController::class, 'deleteCourse'])->name('delete');
+    Route::get('/export', [AdminController::class, 'exportCourses'])->name('export');
+});
+
+
+// Assignment Management Routes
+Route::prefix('assignments')->name('assignments.')->group(function () {
+    Route::get('/', [AdminController::class, 'assignments'])->name('index');
+    Route::delete('/{assignment}', [AdminController::class, 'deleteAssignment'])->name('delete');
+    Route::get('/export', [AdminController::class, 'exportAssignments'])->name('export');
+});
+    
+// Materials Management - Enhanced
+Route::prefix('materials')->name('materials.')->group(function () {
+    Route::get('/', [AdminController::class, 'materials'])->name('index');
+    Route::get('/{material}', [AdminController::class, 'viewMaterial'])->name('show');
+    Route::delete('/{material}', [AdminController::class, 'deleteMaterial'])->name('delete');
+    Route::get('/export', [AdminController::class, 'exportMaterials'])->name('export');
+});
+    // Messages Management
+    Route::prefix('messages')->name('messages.')->group(function () {
+        Route::get('/', [AdminController::class, 'messages'])->name('index');
+        Route::get('/{message}', [AdminController::class, 'viewMessage'])->name('show');
+        Route::delete('/{message}', [AdminController::class, 'deleteMessage'])->name('delete');
+        Route::post('/send', [AdminController::class, 'sendMessage'])->name('send');
     });
     
-    // System Reports
-    Route::prefix('reports')->name('reports.')->group(function () {
-        Route::get('/', [AdminController::class, 'reports'])->name('index');
+    // Profile Management
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [AdminController::class, 'profile'])->name('index');
+        Route::put('/update', [AdminController::class, 'updateProfile'])->name('update');
+        Route::put('/password', [AdminController::class, 'updatePassword'])->name('password');
     });
     
     // System Settings
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/', [AdminController::class, 'settings'])->name('index');
+        Route::put('/update', [AdminController::class, 'updateSettings'])->name('update');
+    });
+    
+    // Reports and Analytics
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [AdminController::class, 'reports'])->name('index');
+        Route::get('/users', [AdminController::class, 'userReports'])->name('users');
+        Route::get('/courses', [AdminController::class, 'courseReports'])->name('courses');
+        Route::get('/assignments', [AdminController::class, 'assignmentReports'])->name('assignments');
+        Route::get('/export/{type}', [AdminController::class, 'exportReport'])->name('export');
     });
 });
 

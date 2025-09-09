@@ -2367,5 +2367,258 @@ private function canMessageUser(User $sender, User $receiver): bool
         return false; // Deny access on error
     }
 }
+ /**
+     * Get notifications for the instructor
+     */
+    public function getNotifications(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $notifications = collect();
+
+            // Get unread messages
+            $unreadMessages = Message::where('receiver_id', $user->id)
+                ->where('is_read', false)
+                ->with('sender')
+                ->latest()
+                ->take(5)
+                ->get();
+
+            foreach ($unreadMessages as $message) {
+                $notifications->push([
+                    'id' => 'message_' . $message->id,
+                    'type' => 'message',
+                    'title' => 'New Message',
+                    'message' => "New message from {$message->sender->name}",
+                    'content' => Str::limit($message->content, 50),
+                    'time' => $message->created_at->diffForHumans(),
+                    'timestamp' => $message->created_at->timestamp,
+                    'icon' => 'ph-chats-teardrop',
+                    'color' => 'primary',
+                    'url' => route('instructor.messages.index', ['conversation' => $message->sender_id]),
+                    'avatar' => $message->sender->avatar ? Storage::url($message->sender->avatar) : url('assets/images/thumbs/user-img.png')
+                ]);
+            }
+
+            // Get approaching assignment deadlines (within 3 days)
+            $upcomingDeadlines = Assignment::byInstructor($user->id)
+                ->where('deadline', '>', now())
+                ->where('deadline', '<=', now()->addDays(3))
+                ->where('status', 'active')
+                ->with('course')
+                ->orderBy('deadline')
+                ->take(5)
+                ->get();
+
+            foreach ($upcomingDeadlines as $assignment) {
+                $daysLeft = now()->diffInDays($assignment->deadline, false);
+                $hoursLeft = now()->diffInHours($assignment->deadline, false);
+                
+                if ($daysLeft < 1) {
+                    $timeLeft = $hoursLeft . ' hours';
+                    $urgency = 'danger';
+                } else {
+                    $timeLeft = $daysLeft . ' days';
+                    $urgency = $daysLeft <= 1 ? 'danger' : 'warning';
+                }
+
+                $notifications->push([
+                    'id' => 'deadline_' . $assignment->id,
+                    'type' => 'deadline',
+                    'title' => 'Assignment Deadline Approaching',
+                    'message' => "Assignment '{$assignment->title}' deadline in {$timeLeft}",
+                    'content' => "Course: {$assignment->course->code}",
+                    'time' => $assignment->deadline->diffForHumans(),
+                    'timestamp' => $assignment->deadline->timestamp,
+                    'icon' => 'ph-clock',
+                    'color' => $urgency,
+                    'url' => route('instructor.assignments.view', $assignment),
+                    'avatar' => null
+                ]);
+            }
+
+            // Get recent submissions (last 24 hours)
+            $recentSubmissions = Submission::whereHas('assignment', function($q) use ($user) {
+                $q->where('assignments.user_id', $user->id);
+            })
+            ->where('submitted_at', '>=', now()->subDay())
+            ->whereIn('status', ['submitted', 'pending'])
+            ->with(['assignment', 'student'])
+            ->latest('submitted_at')
+            ->take(5)
+            ->get();
+
+            foreach ($recentSubmissions as $submission) {
+                $notifications->push([
+                    'id' => 'submission_' . $submission->id,
+                    'type' => 'submission',
+                    'title' => 'New Assignment Submission',
+                    'message' => "{$submission->student->name} submitted '{$submission->assignment->title}'",
+                    'content' => "Submitted " . $submission->submitted_at->diffForHumans(),
+                    'time' => $submission->submitted_at->diffForHumans(),
+                    'timestamp' => $submission->submitted_at->timestamp,
+                    'icon' => 'ph-file-text',
+                    'color' => 'success',
+                    'url' => route('instructor.submissions.detail', $submission),
+                    'avatar' => $submission->student->avatar ? Storage::url($submission->student->avatar) : url('assets/images/thumbs/user-img.png')
+                ]);
+            }
+
+            // Get overdue assignments with pending submissions
+            $overdueAssignments = Assignment::byInstructor($user->id)
+                ->where('deadline', '<', now())
+                ->where('status', 'active')
+                ->whereHas('submissions', function($q) {
+                    $q->whereIn('status', ['submitted', 'pending']);
+                })
+                ->with('course')
+                ->orderBy('deadline', 'desc')
+                ->take(3)
+                ->get();
+
+            foreach ($overdueAssignments as $assignment) {
+                $pendingCount = $assignment->submissions()->whereIn('status', ['submitted', 'pending'])->count();
+                
+                $notifications->push([
+                    'id' => 'overdue_' . $assignment->id,
+                    'type' => 'overdue',
+                    'title' => 'Overdue Assignment Grading',
+                    'message' => "'{$assignment->title}' has {$pendingCount} pending submissions",
+                    'content' => "Deadline was " . $assignment->deadline->diffForHumans(),
+                    'time' => $assignment->deadline->diffForHumans(),
+                    'timestamp' => $assignment->deadline->timestamp,
+                    'icon' => 'ph-warning-circle',
+                    'color' => 'danger',
+                    'url' => route('instructor.submissions.grade') . '?assignment_id=' . $assignment->id,
+                    'avatar' => null
+                ]);
+            }
+
+            // Sort notifications by timestamp (newest first)
+            $notifications = $notifications->sortByDesc('timestamp')->take(10)->values();
+
+            // Get counts for different notification types
+            $counts = [
+                'total' => $notifications->count(),
+                'unread_messages' => Message::where('receiver_id', $user->id)->where('is_read', false)->count(),
+                'upcoming_deadlines' => Assignment::byInstructor($user->id)
+                    ->where('deadline', '>', now())
+                    ->where('deadline', '<=', now()->addDays(3))
+                    ->where('status', 'active')
+                    ->count(),
+                'pending_submissions' => Submission::whereHas('assignment', function($q) use ($user) {
+                    $q->where('assignments.user_id', $user->id);
+                })->whereIn('status', ['submitted', 'pending'])->count(),
+                'overdue_grading' => Assignment::byInstructor($user->id)
+                    ->where('deadline', '<', now())
+                    ->where('status', 'active')
+                    ->whereHas('submissions', function($q) {
+                        $q->whereIn('status', ['submitted', 'pending']);
+                    })->count()
+            ];
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'notifications' => $notifications,
+                    'counts' => $counts,
+                    'has_notifications' => $notifications->isNotEmpty()
+                ]);
+            }
+
+            return $notifications;
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching notifications', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to fetch notifications',
+                    'notifications' => collect(),
+                    'counts' => [
+                        'total' => 0,
+                        'unread_messages' => 0,
+                        'upcoming_deadlines' => 0,
+                        'pending_submissions' => 0,
+                        'overdue_grading' => 0
+                    ]
+                ], 500);
+            }
+
+            return collect();
+        }
+    }
+
+    /**
+     * Mark notification as read/seen
+     */
+    public function markNotificationRead(Request $request)
+    {
+        try {
+            $notificationId = $request->input('notification_id');
+            $user = Auth::user();
+
+            // Parse notification ID to determine type and actual ID
+            if (strpos($notificationId, 'message_') === 0) {
+                $messageId = str_replace('message_', '', $notificationId);
+                Message::where('id', $messageId)
+                    ->where('receiver_id', $user->id)
+                    ->update(['is_read' => true]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Notification marked as read'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error marking notification as read', [
+                'error' => $e->getMessage(),
+                'notification_id' => $request->input('notification_id'),
+                'user_id' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to mark notification as read'
+            ], 500);
+        }
+    }
+
+    /**
+     * Clear all notifications
+     */
+    public function clearAllNotifications(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            // Mark all messages as read
+            Message::where('receiver_id', $user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All notifications cleared'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error clearing notifications', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to clear notifications'
+            ], 500);
+        }
+    }
+
   
 }
