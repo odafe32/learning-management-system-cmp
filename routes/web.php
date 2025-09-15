@@ -34,14 +34,42 @@ Route::middleware('auth')->group(function () {
 // Student Routes
 Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentController::class, 'Dashboard'])->name('dashboard');
+
+    // Profile Management
+    Route::get('/profile', [StudentController::class, 'profile'])->name('profile');
+    Route::put('/profile', [StudentController::class, 'updateProfile'])->name('profile.update');
+    Route::put('/profile/password', [StudentController::class, 'updatePassword'])->name('profile.password');
     
-    // Student-specific routes (uncomment and implement as needed)
-    // Route::get('/courses', [StudentController::class, 'courses'])->name('courses');
-    // Route::get('/assignments', [StudentController::class, 'assignments'])->name('assignments');
-    // Route::get('/assignments/{assignment}', [StudentController::class, 'viewAssignment'])->name('assignments.view');
-    // Route::post('/assignments/{assignment}/submit', [StudentController::class, 'submitAssignment'])->name('assignments.submit');
-    // Route::get('/materials', [StudentController::class, 'materials'])->name('materials');
-    // Route::get('/grades', [StudentController::class, 'grades'])->name('grades');
+    Route::prefix('courses')->name('courses.')->group(function () {
+        Route::get('/', [StudentController::class, 'ShowsCourses'])->name('index');
+        Route::get('/enroll-courses', [StudentController::class, 'EnrollCourse'])->name('enroll-courses');
+    });    
+
+    // Assignments - Complete CRUD
+    Route::prefix('assignments')->name('assignments.')->group(function () {
+        Route::get('/', [StudentController::class, 'ShowAssignments'])->name('index');
+        Route::get('submit-assignments', [StudentController::class, 'SubmitAssignments'])->name('submit-assignments');
+    });
+
+    // Materials Management
+    Route::prefix('materials')->name('materials.')->group(function () {
+        Route::get('/', [StudentController::class, 'viewMaterials'])->name('index');
+    });
+
+    // Submission Management
+    Route::prefix('submissions')->name('submissions.')->group(function () {
+        Route::get('/', [StudentController::class, 'viewSubmissions'])->name('index');
+    });
+
+    // Grades Management
+    Route::prefix('grades')->name('grades.')->group(function () {
+        Route::get('/', [StudentController::class, 'viewGrades'])->name('index');
+    });
+
+    // Feedbacks Management
+    Route::prefix('feedbacks')->name('feedbacks.')->group(function () {
+        Route::get('/', [StudentController::class, 'viewFeedbacks'])->name('index');
+    });
 });
 
 // Instructor/Lecturer Routes
@@ -161,39 +189,40 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
         Route::post('/bulk-action', [AdminController::class, 'bulkAction'])->name('bulk-action');
     });
     
-// Course Management
-Route::prefix('courses')->name('courses.')->group(function () {
-    Route::get('/', [AdminController::class, 'courses'])->name('index');
-    Route::get('/{course}', [AdminController::class, 'viewCourse'])->name('show');
-    Route::delete('/{course}', [AdminController::class, 'deleteCourse'])->name('delete');
-    Route::get('/export', [AdminController::class, 'exportCourses'])->name('export');
-});
+    // Course Management
+    Route::prefix('courses')->name('courses.')->group(function () {
+        Route::get('/', [AdminController::class, 'courses'])->name('index');
+        Route::get('/{course}', [AdminController::class, 'viewCourse'])->name('show');
+        Route::delete('/{course}', [AdminController::class, 'deleteCourse'])->name('delete');
+        Route::get('/export', [AdminController::class, 'exportCourses'])->name('export');
+    });
 
+    // Assignment Management Routes
+    Route::prefix('assignments')->name('assignments.')->group(function () {
+        Route::get('/', [AdminController::class, 'assignments'])->name('index');
+        Route::delete('/{assignment}', [AdminController::class, 'deleteAssignment'])->name('delete');
+        Route::get('/export', [AdminController::class, 'exportAssignments'])->name('export');
+    });
+        
+    // Materials Management - Enhanced
+    Route::prefix('materials')->name('materials.')->group(function () {
+        Route::get('/', [AdminController::class, 'materials'])->name('index');
+        Route::get('/{material}', [AdminController::class, 'viewMaterial'])->name('show');
+        Route::delete('/{material}', [AdminController::class, 'deleteMaterial'])->name('delete');
+        Route::get('/export', [AdminController::class, 'exportMaterials'])->name('export');
+    });
 
-// Assignment Management Routes
-Route::prefix('assignments')->name('assignments.')->group(function () {
-    Route::get('/', [AdminController::class, 'assignments'])->name('index');
-    Route::delete('/{assignment}', [AdminController::class, 'deleteAssignment'])->name('delete');
-    Route::get('/export', [AdminController::class, 'exportAssignments'])->name('export');
-});
-    
-// Materials Management - Enhanced
-Route::prefix('materials')->name('materials.')->group(function () {
-    Route::get('/', [AdminController::class, 'materials'])->name('index');
-    Route::get('/{material}', [AdminController::class, 'viewMaterial'])->name('show');
-    Route::delete('/{material}', [AdminController::class, 'deleteMaterial'])->name('delete');
-    Route::get('/export', [AdminController::class, 'exportMaterials'])->name('export');
-});
-// Messages Management - Enhanced
-Route::prefix('messages')->name('messages.')->group(function () {
-    Route::get('/', [AdminController::class, 'messages'])->name('index');
-    Route::post('/send', [AdminController::class, 'sendMessage'])->name('send');
-    Route::post('/mark-as-read', [AdminController::class, 'markAsRead'])->name('mark-as-read');
-    Route::post('/mark-all-read', [AdminController::class, 'markAllAsRead'])->name('mark-all-read');
-    Route::get('/stats', [AdminController::class, 'getMessageStats'])->name('stats');
-    Route::get('/{message}', [AdminController::class, 'viewMessage'])->name('show');
-    Route::delete('/{message}', [AdminController::class, 'deleteMessage'])->name('delete');
-});
+    // Messages Management - Enhanced
+    Route::prefix('messages')->name('messages.')->group(function () {
+        Route::get('/', [AdminController::class, 'messages'])->name('index');
+        Route::post('/send', [AdminController::class, 'sendMessage'])->name('send');
+        Route::post('/mark-as-read', [AdminController::class, 'markAsRead'])->name('mark-as-read');
+        Route::post('/mark-all-read', [AdminController::class, 'markAllAsRead'])->name('mark-all-read');
+        Route::get('/stats', [AdminController::class, 'getMessageStats'])->name('stats');
+        Route::get('/{message}', [AdminController::class, 'viewMessage'])->name('show');
+        Route::delete('/{message}', [AdminController::class, 'deleteMessage'])->name('delete');
+    });
+
     // Profile Management
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [AdminController::class, 'profile'])->name('index');
@@ -207,7 +236,7 @@ Route::prefix('messages')->name('messages.')->group(function () {
         Route::put('/update', [AdminController::class, 'updateSettings'])->name('update');
     });
     
-     // Notification Routes
+    // Notification Routes
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [AdminController::class, 'getNotifications'])->name('index');
         Route::get('/count', [AdminController::class, 'getNotificationCount'])->name('count');

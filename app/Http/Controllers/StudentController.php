@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Log;
 
 class StudentController extends Controller
 {
+
+    
     public function Dashboard()
     {
           $viewData = [
