@@ -495,43 +495,274 @@ public function viewCourse(Course $course)
         }
     }
 
-    // ==================== MATERIAL METHODS ====================
-
-    public function viewMaterials(Request $request)
-    {
-        try {
-            $user = Auth::user();
-            
-            // Get materials from enrolled courses
-            $materials = Material::whereHas('course', function($query) use ($user) {
-                $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
-            })
-            ->with('course')
-            ->orderBy('uploaded_at', 'desc')
-            ->paginate(12);
-
-            // Group materials by course
-            $materialsByCourse = $materials->groupBy('course.title');
-
-            $viewData = [
-                'meta_title' => 'Course Materials | Student Portal',
-                'meta_desc' => 'Access your course materials and resources',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-                'materials' => $materials,
-                'materialsByCourse' => $materialsByCourse,
-                'user' => $user
-            ];
-
-            return view('student.materials', $viewData);
-        } catch (\Exception $e) {
-            Log::error('Student Materials Error: ' . $e->getMessage());
-            return view('student.materials', [
-                'meta_title' => 'Course Materials | Student Portal',
-                'meta_desc' => 'Access your course materials',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-            ]);
+/**
+ * Show materials with search and filter functionality
+ */
+public function viewMaterials(Request $request)
+{
+    try {
+        $user = Auth::user();
+        
+        // Get search and filter parameters
+        $search = $request->get('search');
+        $courseId = $request->get('course');
+        $fileType = $request->get('file_type');
+        $sortBy = $request->get('sort_by', 'uploaded_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        
+        // Get materials from enrolled courses
+        $materialsQuery = Material::whereHas('course', function($query) use ($user) {
+            $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
+        })
+        ->with(['course', 'instructor'])
+        ->where('visibility', '!=', 'private');
+        
+        // Apply search filter
+        if ($search) {
+            $materialsQuery->where(function($query) use ($search) {
+                $query->where('title', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+            });
         }
+        
+        // Apply course filter
+        if ($courseId) {
+            $materialsQuery->where('course_id', $courseId);
+        }
+        
+        // Apply file type filter
+        if ($fileType) {
+            $materialsQuery->where('file_type', $fileType);
+        }
+        
+        // Apply sorting
+        $materialsQuery->orderBy($sortBy, $sortOrder);
+        
+        $materials = $materialsQuery->paginate(12);
+        
+        // Get enrolled courses for filter dropdown
+        $enrolledCourses = $user->enrolledCourses()
+            ->withCount('materials')
+            ->get();
+        
+        // Get available file types for filter
+        $availableFileTypes = Material::whereHas('course', function($query) use ($user) {
+            $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
+        })
+        ->distinct()
+        ->pluck('file_type')
+        ->filter()
+        ->sort();
+        
+        $viewData = [
+            'meta_title' => 'Course Materials | Student Portal',
+            'meta_desc' => 'Access your course materials and resources',
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'materials' => $materials,
+            'enrolledCourses' => $enrolledCourses,
+            'availableFileTypes' => $availableFileTypes,
+            'currentFilters' => [
+                'search' => $search,
+                'course' => $courseId,
+                'file_type' => $fileType,
+                'sort_by' => $sortBy,
+                'sort_order' => $sortOrder,
+            ],
+            'user' => $user
+        ];
+
+        return view('student.materials', $viewData);
+        
+    } catch (\Exception $e) {
+        Log::error('Student Materials Error: ' . $e->getMessage());
+        
+        // Return safe fallback data
+        $viewData = [
+            'meta_title' => 'Course Materials | Student Portal',
+            'meta_desc' => 'Access your course materials',
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'materials' => collect(),
+            'enrolledCourses' => collect(),
+            'availableFileTypes' => collect(),
+            'currentFilters' => [
+                'search' => '',
+                'course' => '',
+                'file_type' => '',
+                'sort_by' => 'uploaded_at',
+                'sort_order' => 'desc',
+            ],
+            'user' => Auth::user()
+        ];
+        
+        return view('student.materials', $viewData)->with('error', 'Unable to load materials. Please try again.');
     }
+}
+
+/**
+ * Show single material details
+ */
+public function showMaterial(Material $material)
+{
+    try {
+        $user = Auth::user();
+        
+        // Check if student is enrolled in the course
+        if (!$user->isEnrolledIn($material->course_id)) {
+            return redirect()->route('student.materials.index')
+                ->with('error', 'You are not enrolled in this course.');
+        }
+        
+        // Check visibility
+        if ($material->visibility === 'private') {
+            return redirect()->route('student.materials.index')
+                ->with('error', 'This material is not available.');
+        }
+        
+        $viewData = [
+            'meta_title' => $material->title . ' | Course Materials',
+            'meta_desc' => 'View course material: ' . $material->title,
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'material' => $material,
+            'user' => $user
+        ];
+
+        return view('student.material-detail', $viewData);
+    } catch (\Exception $e) {
+        Log::error('Material Detail Error: ' . $e->getMessage());
+        return redirect()->route('student.materials.index')
+            ->with('error', 'Unable to load material details.');
+    }
+}
+
+/**
+ * Download material file
+ */
+public function downloadMaterial(Material $material)
+{
+    try {
+        $user = Auth::user();
+        
+        // Check if student is enrolled in the course
+        if (!$user->isEnrolledIn($material->course_id)) {
+            abort(403, 'You are not enrolled in this course.');
+        }
+        
+        // Check visibility
+        if ($material->visibility === 'private') {
+            abort(403, 'This material is not available.');
+        }
+        
+        // Check if file exists
+        if (!$material->file_exists) {
+            abort(404, 'File not found.');
+        }
+        
+        $filePath = storage_path('app/public/' . $material->file_path);
+        $fileName = $material->title . '.' . $material->file_type;
+        
+        return response()->download($filePath, $fileName);
+        
+    } catch (\Exception $e) {
+        Log::error('Material Download Error: ' . $e->getMessage());
+        abort(500, 'Unable to download file.');
+    }
+}
+
+/**
+ * Stream material file (for viewing in browser)
+ */
+public function streamMaterial(Material $material)
+{
+    try {
+        $user = Auth::user();
+        
+        // Check if student is enrolled in the course
+        if (!$user->isEnrolledIn($material->course_id)) {
+            abort(403, 'You are not enrolled in this course.');
+        }
+        
+        // Check visibility
+        if ($material->visibility === 'private') {
+            abort(403, 'This material is not available.');
+        }
+        
+        // Check if file exists
+        if (!$material->file_exists) {
+            abort(404, 'File not found.');
+        }
+        
+        $filePath = storage_path('app/public/' . $material->file_path);
+        
+        // Get file info
+        $mimeType = Storage::disk('public')->mimeType($material->file_path);
+        $fileSize = Storage::disk('public')->size($material->file_path);
+        
+        return response()->file($filePath, [
+            'Content-Type' => $mimeType,
+            'Content-Length' => $fileSize,
+            'Content-Disposition' => 'inline; filename="' . $material->title . '.' . $material->file_type . '"'
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('Material Stream Error: ' . $e->getMessage());
+        abort(500, 'Unable to stream file.');
+    }
+}
+
+/**
+ * AJAX search materials
+ */
+public function searchMaterials(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $search = $request->get('q');
+        $courseId = $request->get('course_id');
+        
+        $materialsQuery = Material::whereHas('course', function($query) use ($user) {
+            $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
+        })
+        ->with(['course', 'instructor'])
+        ->where('visibility', '!=', 'private');
+        
+        if ($search) {
+            $materialsQuery->where(function($query) use ($search) {
+                $query->where('title', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+        
+        if ($courseId) {
+            $materialsQuery->where('course_id', $courseId);
+        }
+        
+        $materials = $materialsQuery->limit(10)->get();
+        
+        return response()->json([
+            'success' => true,
+            'materials' => $materials->map(function($material) {
+                return [
+                    'id' => $material->id,
+                    'title' => $material->title,
+                    'description' => Str::limit($material->description, 100),
+                    'course_name' => $material->course->title,
+                    'file_type' => $material->file_type,
+                    'file_size' => $material->file_size_formatted,
+                    'uploaded_at' => $material->uploaded_at ? $material->uploaded_at->format('M d, Y') : 'N/A',
+                    'view_url' => route('student.materials.show', $material->id),
+                    'download_url' => route('student.materials.download', $material->id),
+                    'file_icon' => $material->file_icon,
+                ];
+            })
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Search failed. Please try again.'
+        ], 500);
+    }
+}
 
     // ==================== SUBMISSION METHODS ====================
 

@@ -95,11 +95,23 @@ class Material extends Model
         return $query;
     }
 
-    // Accessors & Mutators
+    public function scopeAccessibleToStudent($query, $studentId)
+    {
+        return $query->where(function($q) use ($studentId) {
+            $q->where('visibility', 'public')
+              ->orWhere(function($subQ) use ($studentId) {
+                  $subQ->where('visibility', 'enrolled')
+                       ->whereHas('course.students', function($courseQ) use ($studentId) {
+                           $courseQ->where('user_id', $studentId);
+                       });
+              });
+        });
+    }
+
+    // Instructor Accessors & Mutators
     public function getFileUrlAttribute()
     {
         if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
-            // Use the serve route instead of direct storage URL
             return route('instructor.materials.serve', $this->id);
         }
         return null;
@@ -129,6 +141,32 @@ class Material extends Model
         return null;
     }
 
+    // Student Accessors
+    public function getStudentFileUrlAttribute()
+    {
+        if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
+            return route('student.materials.show', $this->id);
+        }
+        return null;
+    }
+
+    public function getStudentStreamUrlAttribute()
+    {
+        if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
+            return route('student.materials.stream', $this->id);
+        }
+        return null;
+    }
+
+    public function getStudentDownloadUrlAttribute()
+    {
+        if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
+            return route('student.materials.download', $this->id);
+        }
+        return null;
+    }
+
+    // Common Accessors
     public function getFileSizeFormattedAttribute()
     {
         if (!$this->file_size) return 'Unknown';
@@ -177,6 +215,31 @@ class Material extends Model
         return $this->file_path && Storage::disk('public')->exists($this->file_path);
     }
 
+    public function getIsPreviewableAttribute()
+    {
+        return in_array($this->file_type, ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'mp4', 'mp3', 'wav']);
+    }
+
+    public function getIsImageAttribute()
+    {
+        return in_array($this->file_type, ['jpg', 'jpeg', 'png', 'gif']);
+    }
+
+    public function getIsVideoAttribute()
+    {
+        return in_array($this->file_type, ['mp4', 'avi', 'mov']);
+    }
+
+    public function getIsAudioAttribute()
+    {
+        return in_array($this->file_type, ['mp3', 'wav']);
+    }
+
+    public function getIsPdfAttribute()
+    {
+        return $this->file_type === 'pdf';
+    }
+
     // Static methods
     public static function getVisibilityOptions()
     {
@@ -200,5 +263,39 @@ class Material extends Model
     public static function getMaxFileSize()
     {
         return 50 * 1024; // 50MB in KB
+    }
+
+    // Helper methods
+    public function isAccessibleToStudent($studentId)
+    {
+        if ($this->visibility === 'public') {
+            return true;
+        }
+        
+        if ($this->visibility === 'enrolled') {
+            return $this->course->students()->where('user_id', $studentId)->exists();
+        }
+        
+        return false;
+    }
+
+    public function canBeViewedBy($user)
+    {
+        // Instructor can always view their own materials
+        if ($this->user_id === $user->id) {
+            return true;
+        }
+        
+        // Admin can view all materials
+        if ($user->role === 'admin') {
+            return true;
+        }
+        
+        // Students can view based on visibility and enrollment
+        if ($user->role === 'student') {
+            return $this->isAccessibleToStudent($user->id);
+        }
+        
+        return false;
     }
 }

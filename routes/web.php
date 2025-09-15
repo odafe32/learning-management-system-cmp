@@ -67,12 +67,13 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
         Route::get('/course/{course}', [StudentController::class, 'ShowAssignments'])->name('by-course');
     });
 
-    // Materials Management - Enhanced with course filtering
+    // Material Routes
     Route::prefix('materials')->name('materials.')->group(function () {
         Route::get('/', [StudentController::class, 'viewMaterials'])->name('index');
-        Route::get('/{material}', [StudentController::class, 'viewMaterial'])->name('show');
+        Route::get('/search', [StudentController::class, 'searchMaterials'])->name('search');
+        Route::get('/{material}', [StudentController::class, 'showMaterial'])->name('show');
         Route::get('/{material}/download', [StudentController::class, 'downloadMaterial'])->name('download');
-        Route::get('/course/{course}', [StudentController::class, 'viewMaterials'])->name('by-course');
+        Route::get('/{material}/stream', [StudentController::class, 'streamMaterial'])->name('stream');
     });
 
     // Submission Management - Enhanced with filtering
