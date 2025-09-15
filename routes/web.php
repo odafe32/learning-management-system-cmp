@@ -40,35 +40,85 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::put('/profile', [StudentController::class, 'updateProfile'])->name('profile.update');
     Route::put('/profile/password', [StudentController::class, 'updatePassword'])->name('profile.password');
     
+    // Courses Management - Enhanced with enrollment functionality
     Route::prefix('courses')->name('courses.')->group(function () {
+        // Main courses listing (enrolled courses)
         Route::get('/', [StudentController::class, 'ShowsCourses'])->name('index');
+        
+        // Course enrollment
         Route::get('/enroll-courses', [StudentController::class, 'EnrollCourse'])->name('enroll-courses');
+        Route::post('/enroll/{course}', [StudentController::class, 'enrollInCourse'])->name('enroll');
+        Route::delete('/unenroll/{course}', [StudentController::class, 'unenrollFromCourse'])->name('unenroll');
+        
+        // Course detail view (with materials, assignments, announcements)
+        Route::get('/{course:slug}', [StudentController::class, 'viewCourse'])->name('show');
+        
+        // AJAX routes for course operations
+        Route::post('/ajax/enroll/{course}', [StudentController::class, 'enrollInCourse'])->name('ajax.enroll');
+        Route::get('/ajax/details/{course}', [StudentController::class, 'getCourseDetails'])->name('ajax.details');
     });    
 
-    // Assignments - Complete CRUD
+    // Assignments - Enhanced with course filtering
     Route::prefix('assignments')->name('assignments.')->group(function () {
         Route::get('/', [StudentController::class, 'ShowAssignments'])->name('index');
-        Route::get('submit-assignments', [StudentController::class, 'SubmitAssignments'])->name('submit-assignments');
+        Route::get('/submit-assignments', [StudentController::class, 'SubmitAssignments'])->name('submit-assignments');
+        Route::get('/{assignment}', [StudentController::class, 'viewAssignment'])->name('show');
+        Route::post('/{assignment}/submit', [StudentController::class, 'submitAssignment'])->name('submit');
+        Route::get('/course/{course}', [StudentController::class, 'ShowAssignments'])->name('by-course');
     });
 
-    // Materials Management
+    // Materials Management - Enhanced with course filtering
     Route::prefix('materials')->name('materials.')->group(function () {
         Route::get('/', [StudentController::class, 'viewMaterials'])->name('index');
+        Route::get('/{material}', [StudentController::class, 'viewMaterial'])->name('show');
+        Route::get('/{material}/download', [StudentController::class, 'downloadMaterial'])->name('download');
+        Route::get('/course/{course}', [StudentController::class, 'viewMaterials'])->name('by-course');
     });
 
-    // Submission Management
+    // Submission Management - Enhanced with filtering
     Route::prefix('submissions')->name('submissions.')->group(function () {
         Route::get('/', [StudentController::class, 'viewSubmissions'])->name('index');
+        Route::get('/{submission}', [StudentController::class, 'viewSubmission'])->name('show');
+        Route::get('/assignment/{assignment}', [StudentController::class, 'viewSubmissionsByAssignment'])->name('by-assignment');
+        Route::get('/course/{course}', [StudentController::class, 'viewSubmissions'])->name('by-course');
     });
 
-    // Grades Management
+    // Grades Management - Enhanced with filtering
     Route::prefix('grades')->name('grades.')->group(function () {
         Route::get('/', [StudentController::class, 'viewGrades'])->name('index');
+        Route::get('/course/{course}', [StudentController::class, 'viewGrades'])->name('by-course');
+        Route::get('/assignment/{assignment}', [StudentController::class, 'viewGradesByAssignment'])->name('by-assignment');
+        Route::get('/export', [StudentController::class, 'exportGrades'])->name('export');
     });
 
-    // Feedbacks Management
+    // Feedbacks Management - Enhanced with filtering
     Route::prefix('feedbacks')->name('feedbacks.')->group(function () {
         Route::get('/', [StudentController::class, 'viewFeedbacks'])->name('index');
+        Route::get('/{submission}', [StudentController::class, 'viewFeedback'])->name('show');
+        Route::get('/course/{course}', [StudentController::class, 'viewFeedbacks'])->name('by-course');
+    });
+
+    // Messages/Communication
+    Route::prefix('messages')->name('messages.')->group(function () {
+        Route::get('/', [StudentController::class, 'messages'])->name('index');
+        Route::post('/send', [StudentController::class, 'sendMessage'])->name('send');
+        Route::get('/conversation/{user}', [StudentController::class, 'getConversation'])->name('conversation');
+        Route::post('/{message}/read', [StudentController::class, 'markAsRead'])->name('mark-read');
+        Route::post('/mark-all-read', [StudentController::class, 'markAllAsRead'])->name('mark-all-read');
+        Route::delete('/{message}', [StudentController::class, 'deleteMessage'])->name('delete');
+    });
+
+    // Announcements (if you plan to implement this)
+    Route::prefix('announcements')->name('announcements.')->group(function () {
+        Route::get('/', [StudentController::class, 'viewAnnouncements'])->name('index');
+        Route::get('/{announcement}', [StudentController::class, 'viewAnnouncement'])->name('show');
+        Route::get('/course/{course}', [StudentController::class, 'viewAnnouncements'])->name('by-course');
+    });
+
+    // Calendar/Schedule (if you plan to implement this)
+    Route::prefix('schedule')->name('schedule.')->group(function () {
+        Route::get('/', [StudentController::class, 'viewSchedule'])->name('index');
+        Route::get('/calendar', [StudentController::class, 'viewCalendar'])->name('calendar');
     });
 });
 
@@ -252,6 +302,14 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
         Route::get('/courses', [AdminController::class, 'courseReports'])->name('courses');
         Route::get('/assignments', [AdminController::class, 'assignmentReports'])->name('assignments');
         Route::get('/export/{type}', [AdminController::class, 'exportReport'])->name('export');
+    });
+
+    // Course Enrollment Management (Admin can manage all enrollments)
+    Route::prefix('enrollments')->name('enrollments.')->group(function () {
+        Route::get('/', [AdminController::class, 'viewEnrollments'])->name('index');
+        Route::post('/bulk-enroll', [AdminController::class, 'bulkEnrollStudents'])->name('bulk-enroll');
+        Route::post('/bulk-unenroll', [AdminController::class, 'bulkUnenrollStudents'])->name('bulk-unenroll');
+        Route::get('/export', [AdminController::class, 'exportEnrollments'])->name('export');
     });
 });
 
