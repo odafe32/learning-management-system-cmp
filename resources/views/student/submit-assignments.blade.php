@@ -550,17 +550,33 @@
 </style>
 
 <script>
-// Fixed CodeMirror Editor Implementation for Student Assignment Submission
+// Complete Assignment Submission Script with CodeMirror Editor and File Upload
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing CodeMirror editor...');
+    console.log('Initializing Assignment Submission System...');
     
+    // ==================== GLOBAL VARIABLES ====================
     let codeEditor = null;
     let fullscreenEditor = null;
+    let selectedFiles = [];
+    
+    // DOM Elements
     const codeEditorContainer = document.getElementById('codeEditor');
-    const fallbackEditor = document.getElementById('fallbackEditor');
     const codeSubmissionInput = document.getElementById('codeSubmissionInput');
     const languageSelect = document.getElementById('languageSelect');
     const themeSelect = document.getElementById('themeSelect');
+    const fileInput = document.getElementById('submissionFiles');
+    const uploadArea = document.querySelector('.upload-area');
+    const uploadContent = document.querySelector('.upload-content');
+    const filesInfo = document.querySelector('.files-info');
+    const filesList = document.getElementById('filesList');
+    const textSubmission = document.getElementById('textSubmission');
+    const textCounter = document.getElementById('textCounter');
+    
+    // Configuration
+    const maxFiles = 5;
+    const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+    const maxTextLength = 10000;
+    const maxCodeLength = 50000;
     
     // Language modes mapping
     const languageModes = {
@@ -578,225 +594,152 @@ document.addEventListener('DOMContentLoaded', function() {
         'text': 'text/plain'
     };
     
-    // Check if CodeMirror is available
-    if (typeof CodeMirror === 'undefined') {
-        console.error('CodeMirror is not loaded. Using fallback textarea.');
-        showFallbackEditor();
-        return;
-    }
+    // Allowed file types
+    const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain',
+        'application/zip',
+        'application/x-rar-compressed',
+        'application/vnd.rar',
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'text/x-python',
+        'text/javascript',
+        'text/html',
+        'text/css',
+        'text/x-c++src',
+        'text/x-java-source',
+        'application/x-php'
+    ];
     
-    // Initialize CodeMirror using the working method from instructor page
-    try {
-        // Create a hidden textarea for CodeMirror to use
-        const hiddenTextarea = document.createElement('textarea');
-        hiddenTextarea.style.display = 'none';
-        hiddenTextarea.value = '// Start coding here...\n';
-        codeEditorContainer.appendChild(hiddenTextarea);
-        
-        codeEditor = CodeMirror.fromTextArea(hiddenTextarea, {
-            lineNumbers: true,
-            mode: 'text/javascript',
-            theme: 'default',
-            indentUnit: 4,
-            smartIndent: true,
-            tabSize: 4,
-            indentWithTabs: false,
-            electricChars: true,
-            autoCloseBrackets: true,
-            matchBrackets: true,
-            styleActiveLine: true,
-            lineWrapping: true,
-            foldGutter: true,
-            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-            extraKeys: {
-                "Ctrl-Space": "autocomplete",
-                "Ctrl-F": "findPersistent",
-                "F11": function(cm) {
-                    toggleFullscreen();
-                },
-                "Esc": function(cm) {
-                    if (cm.getOption("fullScreen")) {
-                        cm.setOption("fullScreen", false);
-                    }
-                }
-            }
-        });
-        
-        // Set editor size
-        codeEditor.setSize(null, "400px");
-        
-        console.log('CodeMirror initialized successfully');
-        
-        // Event listeners
-        codeEditor.on('change', function() {
-            updateCodeStats();
-            syncWithHiddenInput();
-            updateSubmissionProgress();
-        });
-        
-        // Language change handler
-        if (languageSelect) {
-            languageSelect.addEventListener('change', function() {
-                const mode = languageModes[this.value] || 'text/plain';
-                codeEditor.setOption('mode', mode);
-                console.log('Language changed to:', this.value, 'Mode:', mode);
-            });
+    // File type icons mapping
+    const fileIcons = {
+        'pdf': 'ph-file-pdf',
+        'doc': 'ph-file-doc',
+        'docx': 'ph-file-doc',
+        'txt': 'ph-file-text',
+        'zip': 'ph-file-zip',
+        'rar': 'ph-file-zip',
+        'jpg': 'ph-file-image',
+        'jpeg': 'ph-file-image',
+        'png': 'ph-file-image',
+        'py': 'ph-file-code',
+        'js': 'ph-file-code',
+        'html': 'ph-file-code',
+        'css': 'ph-file-code',
+        'cpp': 'ph-file-code',
+        'java': 'ph-file-code',
+        'php': 'ph-file-code'
+    };
+    
+    // ==================== CODEMIRROR INITIALIZATION ====================
+    function initializeCodeEditor() {
+        // Check if CodeMirror is available
+        if (typeof CodeMirror === 'undefined') {
+            console.error('CodeMirror is not loaded.');
+            showCodeEditorError();
+            return false;
         }
         
-        // Theme change handler
-        if (themeSelect) {
-            themeSelect.addEventListener('change', function() {
-                const themeMap = {
-                    'default': 'default',
-                    'material': 'material',
-                    'monokai': 'monokai',
-                    'dracula': 'dracula'
-                };
-                const theme = themeMap[this.value] || 'default';
-                codeEditor.setOption('theme', theme);
-                console.log('Theme changed to:', theme);
-            });
-        }
-        
-        // Load template button
-        const loadTemplateBtn = document.getElementById('loadTemplateBtn');
-        if (loadTemplateBtn) {
-            loadTemplateBtn.addEventListener('click', function() {
-                const template = `{!! addslashes($assignment->code_sample ?? '') !!}`;
-                if (template && template.trim()) {
-                    codeEditor.setValue(template);
-                    codeEditor.focus();
-                } else {
-                    alert('No template available for this assignment.');
-                }
-            });
-        }
-        
-        // Format code button
-        const formatCodeBtn = document.getElementById('formatCodeBtn');
-        if (formatCodeBtn) {
-            formatCodeBtn.addEventListener('click', function() {
-                const currentValue = codeEditor.getValue();
-                // Simple formatting - just refresh and re-indent
-                codeEditor.setValue(currentValue);
-                codeEditor.execCommand('selectAll');
-                codeEditor.execCommand('indentAuto');
-                codeEditor.setCursor(0, 0);
-                codeEditor.focus();
-            });
-        }
-        
-        // Clear code button
-        const clearCodeBtn = document.getElementById('clearCodeBtn');
-        if (clearCodeBtn) {
-            clearCodeBtn.addEventListener('click', function() {
-                if (confirm('Are you sure you want to clear all code? This action cannot be undone.')) {
-                    codeEditor.setValue('');
-                    codeEditor.focus();
-                }
-            });
-        }
-        
-        // Fullscreen functionality
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
-        const fullscreenModal = document.getElementById('fullscreenModal');
-        
-        if (fullscreenBtn && fullscreenModal) {
-            const modal = new bootstrap.Modal(fullscreenModal);
+        try {
+            // Create a hidden textarea for CodeMirror to use
+            const hiddenTextarea = document.createElement('textarea');
+            hiddenTextarea.style.display = 'none';
+            hiddenTextarea.value = '// Start coding here...\n';
+            codeEditorContainer.appendChild(hiddenTextarea);
             
-            fullscreenBtn.addEventListener('click', function() {
-                const fullscreenContainer = document.getElementById('fullscreenEditor');
-                fullscreenContainer.innerHTML = '';
-                
-                const textarea = document.createElement('textarea');
-                textarea.value = codeEditor.getValue();
-                fullscreenContainer.appendChild(textarea);
-                
-                fullscreenEditor = CodeMirror.fromTextArea(textarea, {
-                    lineNumbers: true,
-                    mode: codeEditor.getOption('mode'),
-                    theme: codeEditor.getOption('theme'),
-                    indentUnit: 4,
-                    smartIndent: true,
-                    tabSize: 4,
-                    indentWithTabs: false,
-                    electricChars: true,
-                    autoCloseBrackets: true,
-                    matchBrackets: true,
-                    styleActiveLine: true,
-                    lineWrapping: true,
-                    foldGutter: true,
-                    gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-                    extraKeys: {
-                        "Ctrl-Space": "autocomplete",
-                        "Esc": function(cm) {
-                            document.getElementById('saveFullscreen').click();
+            codeEditor = CodeMirror.fromTextArea(hiddenTextarea, {
+                lineNumbers: true,
+                mode: 'text/javascript',
+                theme: 'default',
+                indentUnit: 4,
+                smartIndent: true,
+                tabSize: 4,
+                indentWithTabs: false,
+                electricChars: true,
+                autoCloseBrackets: true,
+                matchBrackets: true,
+                styleActiveLine: true,
+                lineWrapping: true,
+                foldGutter: true,
+                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+                extraKeys: {
+                    "Ctrl-Space": "autocomplete",
+                    "Ctrl-F": "findPersistent",
+                    "F11": function(cm) {
+                        toggleFullscreen();
+                    },
+                    "Esc": function(cm) {
+                        if (cm.getOption("fullScreen")) {
+                            cm.setOption("fullScreen", false);
                         }
                     }
-                });
-                
-                fullscreenEditor.setSize(null, "100%");
-                modal.show();
-                
-                setTimeout(() => {
-                    fullscreenEditor.refresh();
-                    fullscreenEditor.focus();
-                }, 300);
+                }
             });
             
-            // Save fullscreen
-            const saveFullscreenBtn = document.getElementById('saveFullscreen');
-            if (saveFullscreenBtn) {
-                saveFullscreenBtn.addEventListener('click', function() {
-                    if (fullscreenEditor) {
-                        codeEditor.setValue(fullscreenEditor.getValue());
+            // Set editor size
+            codeEditor.setSize(null, "400px");
+            
+            console.log('CodeMirror initialized successfully');
+            
+            // Event listeners
+            codeEditor.on('change', function() {
+                updateCodeStats();
+                syncWithHiddenInput();
+                updateSubmissionProgress();
+                triggerAutoSave();
+            });
+            
+            codeEditor.on('cursorActivity', function() {
+                updateCursorPosition();
+            });
+            
+            // Initial setup
+            updateCodeStats();
+            syncWithHiddenInput();
+            
+            // Refresh editor after initialization
+            setTimeout(() => {
+                codeEditor.refresh();
+            }, 100);
+            
+            return true;
+            
+        } catch (error) {
+            console.error('Failed to initialize CodeMirror:', error);
+            showCodeEditorError();
+            return false;
+        }
+    }
+    
+    function showCodeEditorError() {
+        if (codeEditorContainer) {
+            codeEditorContainer.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="ph ph-warning-circle me-2"></i>
+                    Code editor failed to load. Please refresh the page or use the text submission tab.
+                </div>
+                <textarea class="form-control" rows="15" placeholder="You can type your code here as a fallback..." id="fallbackCodeEditor"></textarea>
+            `;
+            
+            // Setup fallback editor
+            const fallbackEditor = document.getElementById('fallbackCodeEditor');
+            if (fallbackEditor) {
+                fallbackEditor.addEventListener('input', function() {
+                    if (codeSubmissionInput) {
+                        codeSubmissionInput.value = this.value;
                     }
-                    modal.hide();
+                    updateSubmissionProgress();
+                    triggerAutoSave();
                 });
             }
-            
-            // Clean up on modal close
-            fullscreenModal.addEventListener('hidden.bs.modal', function() {
-                if (fullscreenEditor) {
-                    fullscreenEditor = null;
-                }
-            });
-        }
-        
-        // Initial setup
-        updateCodeStats();
-        syncWithHiddenInput();
-        updateSubmissionProgress();
-        
-        // Refresh editor after initialization
-        setTimeout(() => {
-            codeEditor.refresh();
-        }, 100);
-        
-    } catch (error) {
-        console.error('Failed to initialize CodeMirror:', error);
-        showFallbackEditor();
-    }
-    
-    function showFallbackEditor() {
-        if (codeEditorContainer) {
-            codeEditorContainer.innerHTML = '<p class="text-danger">Code editor failed to load. Using fallback editor.</p>';
-        }
-        if (fallbackEditor) {
-            fallbackEditor.classList.remove('d-none');
-            fallbackEditor.style.display = 'block';
-            
-            // Sync fallback editor with hidden input
-            fallbackEditor.addEventListener('input', function() {
-                if (codeSubmissionInput) {
-                    codeSubmissionInput.value = this.value;
-                }
-                updateCodeStatsFromTextarea();
-                updateSubmissionProgress();
-            });
         }
     }
     
+    // ==================== CODE EDITOR FUNCTIONS ====================
     function updateCodeStats() {
         if (!codeEditor) return;
         
@@ -807,29 +750,18 @@ document.addEventListener('DOMContentLoaded', function() {
         updateStatsDisplay(lines, characters);
     }
     
-    function updateCodeStatsFromTextarea() {
-        if (!fallbackEditor) return;
-        
-        const code = fallbackEditor.value;
-        const lines = code.split('\n').length;
-        const characters = code.length;
-        
-        updateStatsDisplay(lines, characters);
-    }
-    
     function updateStatsDisplay(lines, characters) {
         const codeStats = document.getElementById('codeStats');
         const codeCounter = document.getElementById('codeCounter');
         const codeLines = document.getElementById('codeLines');
-        const cursorPosition = document.getElementById('cursorPosition');
         
         if (codeStats) {
             codeStats.textContent = `Lines: ${lines} | Characters: ${characters}`;
         }
         
         if (codeCounter) {
-            codeCounter.textContent = `${characters}/50000 characters`;
-            if (characters > 50000) {
+            codeCounter.textContent = `${characters}/${maxCodeLength} characters`;
+            if (characters > maxCodeLength) {
                 codeCounter.classList.add('text-danger');
             } else {
                 codeCounter.classList.remove('text-danger');
@@ -839,8 +771,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (codeLines) {
             codeLines.textContent = lines;
         }
+    }
+    
+    function updateCursorPosition() {
+        if (!codeEditor) return;
         
-        if (cursorPosition && codeEditor) {
+        const cursorPosition = document.getElementById('cursorPosition');
+        if (cursorPosition) {
             const cursor = codeEditor.getCursor();
             cursorPosition.textContent = `Ln ${cursor.line + 1}, Col ${cursor.ch + 1}`;
         }
@@ -852,6 +789,202 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // ==================== FILE UPLOAD FUNCTIONS ====================
+    function initializeFileUpload() {
+        if (!fileInput || !uploadArea) return;
+        
+        // File input change handler
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        // Drag and drop handlers
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        
+        // Click to upload
+        uploadArea.addEventListener('click', function(e) {
+            if (e.target === uploadArea || e.target.closest('.upload-content')) {
+                fileInput.click();
+            }
+        });
+    }
+    
+    function handleFileSelect(e) {
+        const files = Array.from(e.target.files);
+        processFiles(files);
+    }
+    
+    function handleDragOver(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    }
+    
+    function handleDragLeave(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+    }
+    
+    function handleDrop(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        const files = Array.from(e.dataTransfer.files);
+        processFiles(files);
+    }
+    
+    function processFiles(files) {
+        // Check total files limit
+        if (selectedFiles.length + files.length > maxFiles) {
+            showAlert(`Maximum ${maxFiles} files allowed. You can select ${maxFiles - selectedFiles.length} more files.`, 'warning');
+            return;
+        }
+        
+        const validFiles = [];
+        const errors = [];
+        
+        files.forEach(file => {
+            // Check file size
+            if (file.size > maxFileSize) {
+                errors.push(`${file.name}: File size exceeds 10MB limit`);
+                return;
+            }
+            
+            // Check file type
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            const isValidType = allowedTypes.some(type => {
+                return type.includes(fileExtension) || 
+                       file.type === type ||
+                       isCodeFile(fileExtension, file.type);
+            });
+            
+            if (!isValidType) {
+                errors.push(`${file.name}: File type not supported`);
+                return;
+            }
+            
+            // Check for duplicates
+            if (selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                errors.push(`${file.name}: File already selected`);
+                return;
+            }
+            
+            validFiles.push(file);
+        });
+        
+        // Show errors if any
+        if (errors.length > 0) {
+            showAlert('Some files could not be added:\n\n' + errors.join('\n'), 'warning');
+        }
+        
+        // Add valid files
+        if (validFiles.length > 0) {
+            selectedFiles.push(...validFiles);
+            updateFileInput();
+            displayFiles();
+            updateSubmissionProgress();
+            triggerAutoSave();
+        }
+    }
+    
+    function isCodeFile(extension, mimeType) {
+        const codeExtensions = ['py', 'js', 'cpp', 'java', 'php', 'html', 'css'];
+        return codeExtensions.includes(extension) || 
+               mimeType.includes('text/') || 
+               mimeType.includes('application/javascript');
+    }
+    
+    function updateFileInput() {
+        // Create a new DataTransfer object to update the file input
+        const dt = new DataTransfer();
+        selectedFiles.forEach(file => {
+            dt.items.add(file);
+        });
+        fileInput.files = dt.files;
+    }
+    
+    function displayFiles() {
+        if (selectedFiles.length === 0) {
+            uploadContent.style.display = 'block';
+            filesInfo.classList.add('d-none');
+            return;
+        }
+        
+        uploadContent.style.display = 'none';
+        filesInfo.classList.remove('d-none');
+        
+        filesList.innerHTML = '';
+        
+        selectedFiles.forEach((file, index) => {
+            const fileItem = createFileItem(file, index);
+            filesList.appendChild(fileItem);
+        });
+        
+        // Update files count
+        const filesCount = document.getElementById('filesCount');
+        if (filesCount) {
+            filesCount.textContent = selectedFiles.length;
+        }
+    }
+    
+    function createFileItem(file, index) {
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        const iconClass = fileIcons[fileExtension] || 'ph-file';
+        const fileSize = formatFileSize(file.size);
+        
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.innerHTML = `
+            <div class="d-flex align-items-center gap-2">
+                <i class="ph ${iconClass} text-primary"></i>
+                <div>
+                    <div class="fw-medium text-sm">${escapeHtml(file.name)}</div>
+                    <div class="text-xs text-muted">${fileSize}</div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+                <i class="ph ph-x"></i>
+            </button>
+        `;
+        
+        return fileItem;
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // ==================== TEXT SUBMISSION FUNCTIONS ====================
+    function initializeTextSubmission() {
+        if (!textSubmission || !textCounter) return;
+        
+        textSubmission.addEventListener('input', function() {
+            const length = this.value.length;
+            
+            textCounter.textContent = `${length}/${maxTextLength} characters`;
+            
+            if (length > maxTextLength) {
+                textCounter.classList.add('text-danger');
+                this.value = this.value.substring(0, maxTextLength);
+            } else {
+                textCounter.classList.remove('text-danger');
+            }
+            
+            updateSubmissionProgress();
+            triggerAutoSave();
+        });
+        
+        // Initial count
+        const initialLength = textSubmission.value.length;
+        textCounter.textContent = `${initialLength}/${maxTextLength} characters`;
+    }
+    
+    // ==================== PROGRESS TRACKING ====================
     function updateSubmissionProgress() {
         const progressBar = document.getElementById('submissionProgress');
         const progressText = document.getElementById('progressText');
@@ -859,55 +992,356 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!progressBar || !progressText) return;
         
         let progress = 0;
+        let completedSections = [];
         
         // Check code submission
-        const codeContent = codeEditor ? codeEditor.getValue().trim() : (fallbackEditor ? fallbackEditor.value.trim() : '');
-        if (codeContent.length > 0) progress += 50;
+        const codeContent = getCodeContent();
+        if (codeContent.length > 0) {
+            progress += 34;
+            completedSections.push('Code');
+        }
         
         // Check file uploads
-        const fileInput = document.getElementById('submissionFiles');
-        if (fileInput && fileInput.files.length > 0) progress += 25;
+        if (selectedFiles.length > 0) {
+            progress += 33;
+            completedSections.push('Files');
+        }
         
         // Check text submission
-        const textSubmission = document.getElementById('textSubmission');
-        if (textSubmission && textSubmission.value.trim().length > 0) progress += 25;
+        if (textSubmission && textSubmission.value.trim().length > 0) {
+            progress += 33;
+            completedSections.push('Text');
+        }
         
+        // Update progress bar
         progressBar.style.width = progress + '%';
         progressText.textContent = progress + '% complete';
         
-        if (progress > 0) {
+        // Update progress status text
+        const statusSpan = progressText.parentElement.querySelector('span:first-child');
+        if (statusSpan) {
+            if (progress === 0) {
+                statusSpan.textContent = 'Not started';
+            } else if (progress < 100) {
+                statusSpan.textContent = `In progress (${completedSections.join(', ')})`;
+            } else {
+                statusSpan.textContent = 'Ready to submit';
+            }
+        }
+        
+        // Update progress bar color
+        progressBar.className = 'progress-bar';
+        if (progress > 0 && progress < 100) {
             progressBar.classList.add('bg-primary');
-            progressText.parentElement.querySelector('span:first-child').textContent = 'In progress';
+        } else if (progress >= 100) {
+            progressBar.classList.add('bg-success');
         }
     }
     
-    // Form submission handler
-    const form = document.getElementById('submissionForm');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            // Ensure hidden input is updated before submission
-            if (codeEditor && codeSubmissionInput) {
-                codeSubmissionInput.value = codeEditor.getValue();
-            } else if (fallbackEditor && codeSubmissionInput) {
-                codeSubmissionInput.value = fallbackEditor.value;
-            }
+    function getCodeContent() {
+        if (codeEditor) {
+            return codeEditor.getValue().trim();
+        } else if (codeSubmissionInput) {
+            return codeSubmissionInput.value.trim();
+        }
+        return '';
+    }
+    
+    // ==================== EVENT HANDLERS ====================
+    function initializeEventHandlers() {
+        // Language change handler
+        if (languageSelect) {
+            languageSelect.addEventListener('change', function() {
+                if (codeEditor) {
+                    const mode = languageModes[this.value] || 'text/plain';
+                    codeEditor.setOption('mode', mode);
+                    console.log('Language changed to:', this.value, 'Mode:', mode);
+                }
+            });
+        }
+        
+        // Theme change handler
+        if (themeSelect) {
+            themeSelect.addEventListener('change', function() {
+                if (codeEditor) {
+                    const themeMap = {
+                        'default': 'default',
+                        'material': 'material',
+                        'monokai': 'monokai',
+                        'dracula': 'dracula'
+                    };
+                    const theme = themeMap[this.value] || 'default';
+                    codeEditor.setOption('theme', theme);
+                    console.log('Theme changed to:', theme);
+                }
+            });
+        }
+        
+        // Load template button
+        const loadTemplateBtn = document.getElementById('loadTemplateBtn');
+        if (loadTemplateBtn) {
+            loadTemplateBtn.addEventListener('click', function() {
+                const template = `{!! addslashes($assignment->code_sample ?? '') !!}`;
+                if (template && template.trim() && template !== '// Enter your starter code or template here') {
+                    if (codeEditor) {
+                        codeEditor.setValue(template);
+                        codeEditor.focus();
+                    }
+                } else {
+                    showAlert('No template available for this assignment.', 'info');
+                }
+            });
+        }
+        
+        // Format code button
+        const formatCodeBtn = document.getElementById('formatCodeBtn');
+        if (formatCodeBtn) {
+            formatCodeBtn.addEventListener('click', function() {
+                if (codeEditor) {
+                    const currentValue = codeEditor.getValue();
+                    codeEditor.setValue(currentValue);
+                    codeEditor.execCommand('selectAll');
+                    codeEditor.execCommand('indentAuto');
+                    codeEditor.setCursor(0, 0);
+                    codeEditor.focus();
+                }
+            });
+        }
+        
+        // Clear code button
+        const clearCodeBtn = document.getElementById('clearCodeBtn');
+        if (clearCodeBtn) {
+            clearCodeBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear all code? This action cannot be undone.')) {
+                    if (codeEditor) {
+                        codeEditor.setValue('');
+                        codeEditor.focus();
+                    }
+                }
+            });
+        }
+        
+        // Fullscreen functionality
+        initializeFullscreen();
+        
+        // Preview functionality
+        initializePreview();
+        
+        // Tab switching
+        const tabButtons = document.querySelectorAll('[data-bs-toggle="tab"]');
+        tabButtons.forEach(button => {
+            button.addEventListener('shown.bs.tab', function() {
+                updateSubmissionProgress();
+                if (codeEditor) {
+                    setTimeout(() => codeEditor.refresh(), 100);
+                }
+            });
+        });
+        
+        // Form submission
+        initializeFormSubmission();
+    }
+    
+    // ==================== FULLSCREEN FUNCTIONALITY ====================
+    function initializeFullscreen() {
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const fullscreenModal = document.getElementById('fullscreenModal');
+        
+        if (!fullscreenBtn || !fullscreenModal) return;
+        
+        const modal = new bootstrap.Modal(fullscreenModal);
+        
+        fullscreenBtn.addEventListener('click', function() {
+            if (!codeEditor) return;
             
-            // Validate that at least one submission type is provided
-            const hasCode = codeSubmissionInput.value.trim().length > 0;
-            const hasFiles = document.getElementById('submissionFiles').files.length > 0;
-            const hasText = document.getElementById('textSubmission').value.trim().length > 0;
+            const fullscreenContainer = document.getElementById('fullscreenEditor');
+            fullscreenContainer.innerHTML = '';
             
-            if (!hasCode && !hasFiles && !hasText) {
-                e.preventDefault();
-                alert('Please provide at least one form of submission (code, file, or text).');
-                return false;
+            const textarea = document.createElement('textarea');
+            textarea.value = codeEditor.getValue();
+            fullscreenContainer.appendChild(textarea);
+            
+            fullscreenEditor = CodeMirror.fromTextArea(textarea, {
+                lineNumbers: true,
+                mode: codeEditor.getOption('mode'),
+                theme: codeEditor.getOption('theme'),
+                indentUnit: 4,
+                smartIndent: true,
+                tabSize: 4,
+                indentWithTabs: false,
+                electricChars: true,
+                autoCloseBrackets: true,
+                matchBrackets: true,
+                styleActiveLine: true,
+                lineWrapping: true,
+                foldGutter: true,
+                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+                extraKeys: {
+                    "Ctrl-Space": "autocomplete",
+                    "Esc": function(cm) {
+                        document.getElementById('saveFullscreen').click();
+                    }
+                }
+            });
+            
+            fullscreenEditor.setSize(null, "100%");
+            modal.show();
+            
+            setTimeout(() => {
+                fullscreenEditor.refresh();
+                fullscreenEditor.focus();
+            }, 300);
+        });
+        
+        // Save fullscreen
+        const saveFullscreenBtn = document.getElementById('saveFullscreen');
+        if (saveFullscreenBtn) {
+            saveFullscreenBtn.addEventListener('click', function() {
+                if (fullscreenEditor && codeEditor) {
+                    codeEditor.setValue(fullscreenEditor.getValue());
+                }
+                modal.hide();
+            });
+        }
+        
+        // Clean up on modal close
+        fullscreenModal.addEventListener('hidden.bs.modal', function() {
+            if (fullscreenEditor) {
+                fullscreenEditor = null;
             }
         });
     }
     
-    // Auto-save functionality
+    // ==================== PREVIEW FUNCTIONALITY ====================
+    function initializePreview() {
+        const previewBtn = document.getElementById('previewBtn');
+        const previewModal = document.getElementById('previewModal');
+        const previewContent = document.getElementById('previewContent');
+        
+        if (!previewBtn || !previewModal || !previewContent) return;
+        
+        previewBtn.addEventListener('click', function() {
+            generatePreview();
+            const modal = new bootstrap.Modal(previewModal);
+            modal.show();
+        });
+        
+        // Submit from preview
+        const submitFromPreview = document.getElementById('submitFromPreview');
+        if (submitFromPreview) {
+            submitFromPreview.addEventListener('click', function() {
+                const form = document.getElementById('submissionForm');
+                if (form) {
+                    // Close preview modal
+                    const modal = bootstrap.Modal.getInstance(previewModal);
+                    if (modal) {
+                        modal.hide();
+                    }
+                    
+                    // Submit form
+                    form.submit();
+                }
+            });
+        }
+    }
+    
+    function generatePreview() {
+        const previewContent = document.getElementById('previewContent');
+        if (!previewContent) return;
+        
+        let previewHTML = '<div class="submission-preview">';
+        
+        // Code preview
+        const codeContent = getCodeContent();
+        if (codeContent) {
+            previewHTML += `
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-3">Code Submission</h6>
+                    <pre class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;"><code>${escapeHtml(codeContent)}</code></pre>
+                </div>
+            `;
+        }
+        
+        // Files preview
+        if (selectedFiles.length > 0) {
+            previewHTML += `
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-3">Files (${selectedFiles.length})</h6>
+                    <div class="list-group">
+            `;
+            
+            selectedFiles.forEach(file => {
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                const iconClass = fileIcons[fileExtension] || 'ph-file';
+                const fileSize = formatFileSize(file.size);
+                
+                previewHTML += `
+                    <div class="list-group-item d-flex align-items-center gap-3">
+                        <i class="ph ${iconClass} text-primary"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-medium">${escapeHtml(file.name)}</div>
+                            <small class="text-muted">${fileSize}</small>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            previewHTML += '</div></div>';
+        }
+        
+        // Text preview
+        const textContent = textSubmission ? textSubmission.value.trim() : '';
+        if (textContent) {
+            previewHTML += `
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-3">Text Submission</h6>
+                    <div class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;">
+                        ${escapeHtml(textContent).replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (!codeContent && selectedFiles.length === 0 && !textContent) {
+            previewHTML += '<p class="text-muted">No content to preview. Please add some content before previewing.</p>';
+        }
+        
+        previewHTML += '</div>';
+        previewContent.innerHTML = previewHTML;
+    }
+    
+    // ==================== FORM SUBMISSION ====================
+    function initializeFormSubmission() {
+        const form = document.getElementById('submissionForm');
+        if (!form) return;
+        
+        form.addEventListener('submit', function(e) {
+            // Ensure hidden input is updated before submission
+            syncWithHiddenInput();
+            
+            // Validate that at least one submission type is provided
+            const hasCode = getCodeContent().length > 0;
+            const hasFiles = selectedFiles.length > 0;
+            const hasText = textSubmission && textSubmission.value.trim().length > 0;
+            
+            if (!hasCode && !hasFiles && !hasText) {
+                e.preventDefault();
+                showAlert('Please provide at least one form of submission (code, file, or text).', 'error');
+                return false;
+            }
+            
+            // Show loading state
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="ph ph-spinner ph-spin me-2"></i>Submitting...';
+            }
+        });
+    }
+    
+    // ==================== AUTO-SAVE FUNCTIONALITY ====================
     let autoSaveTimeout;
-    function autoSave() {
+    function triggerAutoSave() {
         clearTimeout(autoSaveTimeout);
         autoSaveTimeout = setTimeout(() => {
             const saveStatus = document.getElementById('saveStatus');
@@ -915,7 +1349,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 saveStatus.textContent = 'Saving...';
                 saveStatus.className = 'text-warning';
                 
-                // Simulate save (you can implement actual auto-save here)
+                // Simulate save (implement actual auto-save here if needed)
                 setTimeout(() => {
                     saveStatus.textContent = 'All changes saved';
                     saveStatus.className = 'text-success';
@@ -924,21 +1358,86 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000);
     }
     
-    // Trigger auto-save on changes
-    if (codeEditor) {
-        codeEditor.on('change', autoSave);
+    // ==================== UTILITY FUNCTIONS ====================
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
-    // Handle tab switching to update progress
-    const tabButtons = document.querySelectorAll('[data-bs-toggle="tab"]');
-    tabButtons.forEach(button => {
-        button.addEventListener('shown.bs.tab', function() {
-            updateSubmissionProgress();
-            if (codeEditor) {
-                setTimeout(() => codeEditor.refresh(), 100);
+    function showAlert(message, type = 'info') {
+        // Create alert element
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            <i class="ph ph-${type === 'error' ? 'warning-circle' : type === 'success' ? 'check-circle' : 'info'} me-2"></i>
+            ${message.replace(/\n/g, '<br>')}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Insert at top of form
+        const form = document.getElementById('submissionForm');
+        if (form) {
+            form.insertBefore(alertDiv, form.firstChild);
+        }
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
             }
-        });
-    });
+        }, 5000);
+    }
+    
+    // ==================== GLOBAL FUNCTIONS (for HTML onclick handlers) ====================
+    window.removeFile = function(index) {
+        selectedFiles.splice(index, 1);
+        updateFileInput();
+        displayFiles();
+        updateSubmissionProgress();
+        triggerAutoSave();
+    };
+    
+    window.clearAllFiles = function() {
+        if (confirm('Are you sure you want to remove all files?')) {
+            selectedFiles = [];
+            updateFileInput();
+            displayFiles();
+            updateSubmissionProgress();
+            triggerAutoSave();
+        }
+    };
+    
+    window.toggleFullscreen = function() {
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        if (fullscreenBtn) {
+            fullscreenBtn.click();
+        }
+    };
+    
+    // ==================== INITIALIZATION ====================
+    function initialize() {
+        console.log('Starting initialization...');
+        
+        // Initialize components
+        const codeEditorInitialized = initializeCodeEditor();
+        initializeFileUpload();
+        initializeTextSubmission();
+        initializeEventHandlers();
+        
+        // Initial progress update
+        setTimeout(() => {
+            updateSubmissionProgress();
+        }, 500);
+        
+        console.log('Assignment submission system initialized successfully');
+        console.log('CodeMirror:', codeEditorInitialized ? 'Loaded' : 'Failed');
+        console.log('File Upload:', fileInput ? 'Ready' : 'Not available');
+        console.log('Text Submission:', textSubmission ? 'Ready' : 'Not available');
+    }
+    
+    // Start initialization
+    initialize();
 });
 </script>
 
