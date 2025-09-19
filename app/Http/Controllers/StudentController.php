@@ -404,96 +404,8 @@ public function viewCourse(Course $course)
     }
     // ==================== ASSIGNMENT METHODS ====================
 
-    public function ShowAssignments(Request $request)
-    {
-        try {
-            $user = Auth::user();
-            
-            // Get assignments from enrolled courses
-            $assignments = Assignment::whereHas('course', function($query) use ($user) {
-                $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
-            })
-            ->with([
-                'course',
-                'submissions' => function($query) use ($user) {
-                    $query->where('student_id', $user->id);
-                }
-            ])
-            ->where('status', 'active')
-            ->orderBy('deadline', 'asc')
-            ->paginate(10);
 
-            // Categorize assignments
-            $upcomingAssignments = $assignments->filter(function($assignment) {
-                return $assignment->deadline > now() && $assignment->submissions->isEmpty();
-            });
 
-            $overdueAssignments = $assignments->filter(function($assignment) {
-                return $assignment->deadline < now() && $assignment->submissions->isEmpty();
-            });
-
-            $submittedAssignments = $assignments->filter(function($assignment) {
-                return $assignment->submissions->isNotEmpty();
-            });
-
-            $viewData = [
-                'meta_title' => 'Assignments | Student Portal',
-                'meta_desc' => 'View and manage your course assignments',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-                'assignments' => $assignments,
-                'upcomingAssignments' => $upcomingAssignments,
-                'overdueAssignments' => $overdueAssignments,
-                'submittedAssignments' => $submittedAssignments,
-                'user' => $user
-            ];
-
-            return view('student.assignments', $viewData);
-        } catch (\Exception $e) {
-            Log::error('Student Assignments Error: ' . $e->getMessage());
-            return view('student.assignments', [
-                'meta_title' => 'Assignments | Student Portal',
-                'meta_desc' => 'View your course assignments',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-            ]);
-        }
-    }
-
-    public function SubmitAssignments()
-    {
-        try {
-            $user = Auth::user();
-            
-            // Get pending assignments (not submitted and not overdue)
-            $pendingAssignments = Assignment::whereHas('course', function($query) use ($user) {
-                $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
-            })
-            ->whereDoesntHave('submissions', function($query) use ($user) {
-                $query->where('student_id', $user->id);
-            })
-            ->where('status', 'active')
-            ->where('deadline', '>', now())
-            ->with('course')
-            ->orderBy('deadline', 'asc')
-            ->get();
-
-            $viewData = [
-                'meta_title' => 'Submit Assignments | Student Portal',
-                'meta_desc' => 'Submit your pending course assignments',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-                'pendingAssignments' => $pendingAssignments,
-                'user' => $user
-            ];
-
-            return view('student.submit-assignments', $viewData);
-        } catch (\Exception $e) {
-            Log::error('Submit Assignments Error: ' . $e->getMessage());
-            return view('student.submit-assignments', [
-                'meta_title' => 'Submit Assignments | Student Portal',
-                'meta_desc' => 'Submit your course assignments',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-            ]);
-        }
-    }
 
 /**
  * Show materials with search and filter functionality
@@ -764,164 +676,631 @@ public function searchMaterials(Request $request)
     }
 }
 
-    // ==================== SUBMISSION METHODS ====================
+/**
+ * Show assignments from enrolled courses with filtering and status
+ */
+public function ShowAssignments(Request $request)
+{
+    try {
+        $user = Auth::user();
+        
+        // Get filter parameters
+        $courseId = $request->get('course');
+        $status = $request->get('status', 'all'); // all, pending, submitted, overdue
+        $search = $request->get('search');
+        
+        // Base query for assignments from enrolled courses
+        $assignmentsQuery = Assignment::whereHas('course', function($query) use ($user) {
+            $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
+        })
+        ->with([
+            'course',
+            'submissions' => function($query) use ($user) {
+                $query->where('student_id', $user->id);
+            }
+        ])
+        ->where('status', 'active');
 
-    public function viewSubmissions()
-    {
-        try {
-            $user = Auth::user();
-            
-            $submissions = $user->submissions()
-                ->with(['assignment.course'])
-                ->orderBy('submitted_at', 'desc')
-                ->paginate(10);
-
-            $viewData = [
-                'meta_title' => 'My Submissions | Student Portal',
-                'meta_desc' => 'View your assignment submissions history',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-                'submissions' => $submissions,
-                'user' => $user
-            ];
-
-            return view('student.submissions', $viewData);
-        } catch (\Exception $e) {
-            Log::error('Student Submissions Error: ' . $e->getMessage());
-            return view('student.submissions', [
-                'meta_title' => 'My Submissions | Student Portal',
-                'meta_desc' => 'View your assignment submissions',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-            ]);
+        // Apply course filter
+        if ($courseId) {
+            $assignmentsQuery->where('course_id', $courseId);
         }
-    }
 
-    // ==================== GRADE METHODS ====================
-
-    public function viewGrades()
-    {
-        try {
-            $user = Auth::user();
-            
-            $gradedSubmissions = $user->submissions()
-                ->where('status', 'graded')
-                ->whereNotNull('grade')
-                ->with(['assignment.course'])
-                ->orderBy('graded_at', 'desc')
-                ->paginate(10);
-
-            // Calculate statistics
-            $averageGrade = $gradedSubmissions->avg('grade');
-            $totalGraded = $gradedSubmissions->count();
-            $highestGrade = $gradedSubmissions->max('grade');
-
-            $viewData = [
-                'meta_title' => 'My Grades | Student Portal',
-                'meta_desc' => 'View your assignment and course grades',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-                'gradedSubmissions' => $gradedSubmissions,
-                'averageGrade' => round($averageGrade, 2),
-                'totalGraded' => $totalGraded,
-                'highestGrade' => $highestGrade,
-                'user' => $user
-            ];
-
-            return view('student.grades', $viewData);
-        } catch (\Exception $e) {
-            Log::error('Student Grades Error: ' . $e->getMessage());
-            return view('student.grades', [
-                'meta_title' => 'My Grades | Student Portal',
-                'meta_desc' => 'View your grades',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-            ]);
+        // Apply search filter
+        if ($search) {
+            $assignmentsQuery->where(function($query) use ($search) {
+                $query->where('title', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+            });
         }
-    }
 
-    // ==================== FEEDBACK METHODS ====================
+        $assignments = $assignmentsQuery->orderBy('deadline', 'asc')->paginate(12);
 
-    public function viewFeedbacks()
-    {
-        try {
-            $user = Auth::user();
+        // Categorize assignments based on status
+        $categorizedAssignments = [
+            'pending' => collect(),
+            'submitted' => collect(),
+            'overdue' => collect(),
+            'graded' => collect()
+        ];
+
+        foreach ($assignments as $assignment) {
+            $submission = $assignment->submissions->first();
             
-            $feedbacks = $user->submissions()
-                ->whereNotNull('feedback')
-                ->where('feedback', '!=', '')
-                ->with(['assignment.course'])
-                ->orderBy('graded_at', 'desc')
-                ->paginate(10);
-
-            $viewData = [
-                'meta_title' => 'Feedbacks | Student Portal',
-                'meta_desc' => 'View feedback on your assignments and performance',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-                'feedbacks' => $feedbacks,
-                'user' => $user
-            ];
-
-            return view('student.feedbacks', $viewData);
-        } catch (\Exception $e) {
-            Log::error('Student Feedbacks Error: ' . $e->getMessage());
-            return view('student.feedbacks', [
-                'meta_title' => 'Feedbacks | Student Portal',
-                'meta_desc' => 'View feedback on your assignments',
-                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
-            ]);
+            if ($submission) {
+                if ($submission->status === 'graded') {
+                    $categorizedAssignments['graded']->push($assignment);
+                } else {
+                    $categorizedAssignments['submitted']->push($assignment);
+                }
+            } elseif ($assignment->deadline && $assignment->deadline < now()) {
+                $categorizedAssignments['overdue']->push($assignment);
+            } else {
+                $categorizedAssignments['pending']->push($assignment);
+            }
         }
+
+        // Filter by status if specified
+        if ($status !== 'all') {
+            $assignments = $assignments->filter(function($assignment) use ($status) {
+                $submission = $assignment->submissions->first();
+                
+                return match($status) {
+                    'pending' => !$submission && (!$assignment->deadline || $assignment->deadline >= now()),
+                    'submitted' => $submission && $submission->status !== 'graded',
+                    'overdue' => !$submission && $assignment->deadline && $assignment->deadline < now(),
+                    'graded' => $submission && $submission->status === 'graded',
+                    default => true
+                };
+            });
+        }
+
+        // Get enrolled courses for filter
+        $enrolledCourses = $user->enrolledCourses()->get();
+
+        $viewData = [
+            'meta_title' => 'My Assignments | Student Portal',
+            'meta_desc' => 'View and manage your course assignments',
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'assignments' => $assignments,
+            'categorizedAssignments' => $categorizedAssignments,
+            'courses' => $enrolledCourses, // Fix: Pass as 'courses' instead of 'enrolledCourses'
+            'enrolledCourses' => $enrolledCourses, // Keep both for compatibility
+            'currentFilters' => [
+                'course' => $courseId,
+                'status' => $status,
+                'search' => $search
+            ],
+            'user' => $user
+        ];
+
+        return view('student.assignments', $viewData);
+    } catch (\Exception $e) {
+        Log::error('Student Assignments Error: ' . $e->getMessage());
+        return view('student.assignments', [
+            'meta_title' => 'My Assignments | Student Portal',
+            'meta_desc' => 'View your course assignments',
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'assignments' => collect(),
+            'categorizedAssignments' => ['pending' => collect(), 'submitted' => collect(), 'overdue' => collect(), 'graded' => collect()],
+            'courses' => collect(), // Fix: Add empty courses collection
+            'enrolledCourses' => collect(),
+            'currentFilters' => ['course' => '', 'status' => 'all', 'search' => ''],
+            'user' => Auth::user()
+        ]);
     }
+}
 
-    // ==================== HELPER METHODS ====================
+/**
+ * Show detailed assignment view for student
+ */
+/**
+ * Show detailed assignment view for student
+ */
+public function viewAssignment(Assignment $assignment)
+{
+    try {
+        $user = Auth::user();
 
-    private function getPendingAssignmentsCount()
-    {
-        try {
-            $user = Auth::user();
-            return Assignment::whereHas('course', function($query) use ($user) {
+        // Check if student is enrolled in the course
+        if (!$user->isEnrolledIn($assignment->course_id)) {
+            return redirect()->route('student.assignments.index')
+                ->with('error', 'You are not enrolled in this course.');
+        }
+
+        // Check if assignment is active
+        if ($assignment->status !== 'active') {
+            return redirect()->route('student.assignments.index')
+                ->with('error', 'This assignment is not available.');
+        }
+
+        // Get student's submission for this assignment
+        $submission = Submission::where('assignment_id', $assignment->id)
+            ->where('student_id', $user->id)
+            ->first();
+
+        // Determine assignment status
+        $canSubmit = !$submission && (!$assignment->deadline || $assignment->deadline > now());
+        $isOverdue = $assignment->deadline && $assignment->deadline < now();
+
+        // Get assignment statistics (optional - for student to see class progress)
+        $totalSubmissions = $assignment->submissions()->count();
+        $totalEnrolled = $assignment->course->students()->count();
+
+        $viewData = [
+            'meta_title' => $assignment->title . ' | Assignment Details',
+            'meta_desc' => 'View assignment details and submit your work',
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'assignment' => $assignment,
+            'submission' => $submission,
+            'canSubmit' => $canSubmit,
+            'isOverdue' => $isOverdue,
+            'totalSubmissions' => $totalSubmissions,
+            'totalEnrolled' => $totalEnrolled,
+            'user' => $user
+        ];
+
+        return view('student.assignment-detail', $viewData);
+    } catch (\Exception $e) {
+        Log::error('Assignment Detail Error: ' . $e->getMessage());
+        return redirect()->route('student.assignments.index')
+            ->with('error', 'Unable to load assignment details.');
+    }
+}
+
+
+
+/**
+ * Show assignment submission form
+ */
+public function showSubmissionForm(Assignment $assignment)
+{
+    try {
+        $user = Auth::user();
+
+        // Check if student is enrolled in the course
+        if (!$user->isEnrolledIn($assignment->course_id)) {
+            return redirect()->route('student.assignments.index')
+                ->with('error', 'You are not enrolled in this course.');
+        }
+
+        // Check if assignment is active
+        if ($assignment->status !== 'active') {
+            return redirect()->route('student.assignments.index')
+                ->with('error', 'This assignment is not available.');
+        }
+
+        // Check if already submitted
+        $existingSubmission = Submission::where('assignment_id', $assignment->id)
+            ->where('student_id', $user->id)
+            ->first();
+
+        if ($existingSubmission) {
+            return redirect()->route('student.assignments.show', $assignment)
+                ->with('info', 'You have already submitted this assignment.');
+        }
+
+        // Check if deadline has passed
+        if ($assignment->deadline < now()) {
+            return redirect()->route('student.assignments.show', $assignment)
+                ->with('error', 'The deadline for this assignment has passed.');
+        }
+
+        $viewData = [
+            'meta_title' => 'Submit Assignment: ' . $assignment->title,
+            'meta_desc' => 'Submit your assignment work',
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'assignment' => $assignment,
+            'user' => $user
+        ];
+
+        return view('student.submit-assignment', $viewData);
+    } catch (\Exception $e) {
+        Log::error('Assignment Submission Form Error: ' . $e->getMessage());
+        return redirect()->route('student.assignments.index')
+            ->with('error', 'Unable to load submission form.');
+    }
+}
+/**
+ * Show assignment submission form
+ */
+public function SubmitAssignments(Assignment $assignment = null)
+{
+    try {
+        $user = Auth::user();
+
+        // If no specific assignment is provided, show assignment selection
+        if (!$assignment) {
+            // Get all pending assignments for the student
+            $pendingAssignments = Assignment::whereHas('course', function($query) use ($user) {
                 $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
             })
             ->whereDoesntHave('submissions', function($query) use ($user) {
                 $query->where('student_id', $user->id);
             })
             ->where('status', 'active')
-            ->where('deadline', '>', now())
-            ->count();
-        } catch (\Exception $e) {
-            return 0;
-        }
-    }
-
-    private function getRecentGrades()
-    {
-        try {
-            $user = Auth::user();
-            return $user->submissions()
-                ->where('status', 'graded')
-                ->whereNotNull('grade')
-                ->with('assignment.course')
-                ->orderBy('graded_at', 'desc')
-                ->limit(5)
-                ->get();
-        } catch (\Exception $e) {
-            return collect();
-        }
-    }
-
-    private function getUpcomingDeadlines()
-    {
-        try {
-            $user = Auth::user();
-            return Assignment::whereHas('course', function($query) use ($user) {
-                $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
+            ->where(function($query) {
+                $query->whereNull('deadline')
+                      ->orWhere('deadline', '>', now());
             })
-            ->where('status', 'active')
-            ->where('deadline', '>', now())
-            ->where('deadline', '<=', now()->addDays(7))
             ->with('course')
             ->orderBy('deadline', 'asc')
+            ->get();
+
+            $viewData = [
+                'meta_title' => 'Submit Assignments | Student Portal',
+                'meta_desc' => 'Choose an assignment to submit',
+                'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+                'assignments' => $pendingAssignments,
+                'user' => $user
+            ];
+
+            // Use a different view for assignment selection
+            return view('student.submit-assignments-list', $viewData);
+        }
+
+        // If specific assignment is provided, show submission form
+        // Check if student is enrolled in the course
+        if (!$user->isEnrolledIn($assignment->course_id)) {
+            return redirect()->route('student.assignments.index')
+                ->with('error', 'You are not enrolled in this course.');
+        }
+
+        // Check if assignment is active
+        if ($assignment->status !== 'active') {
+            return redirect()->route('student.assignments.index')
+                ->with('error', 'This assignment is not available.');
+        }
+
+        // Check if already submitted
+        $existingSubmission = Submission::where('assignment_id', $assignment->id)
+            ->where('student_id', $user->id)
+            ->first();
+
+        if ($existingSubmission) {
+            return redirect()->route('student.assignments.show', $assignment)
+                ->with('info', 'You have already submitted this assignment.');
+        }
+
+        // Check if deadline has passed
+        if ($assignment->deadline && $assignment->deadline < now()) {
+            return redirect()->route('student.assignments.show', $assignment)
+                ->with('error', 'The deadline for this assignment has passed.');
+        }
+
+        $viewData = [
+            'meta_title' => 'Submit Assignment: ' . $assignment->title,
+            'meta_desc' => 'Submit your assignment work',
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'assignment' => $assignment,
+            'user' => $user
+        ];
+
+        // Use the existing view for single assignment submission
+        return view('student.submit-assignments', $viewData);
+
+    } catch (\Exception $e) {
+        Log::error('Assignment Submission Form Error: ' . $e->getMessage());
+        return redirect()->route('student.assignments.index')
+            ->with('error', 'Unable to load submission form.');
+    }
+}
+
+/**
+ * Handle assignment submission
+ */
+/**
+ * Handle assignment submission
+ */
+public function submitAssignment(Request $request, Assignment $assignment)
+{
+    try {
+        $user = Auth::user();
+
+        // Validate access
+        if (!$user->isEnrolledIn($assignment->course_id)) {
+            return redirect()->route('student.assignments.index')
+                ->with('error', 'You are not enrolled in this course.');
+        }
+
+        if ($assignment->status !== 'active') {
+            return redirect()->route('student.assignments.index')
+                ->with('error', 'This assignment is not available.');
+        }
+
+        // Check if already submitted
+        $existingSubmission = Submission::where('assignment_id', $assignment->id)
+            ->where('student_id', $user->id)
+            ->first();
+
+        if ($existingSubmission) {
+            return redirect()->route('student.assignments.show', $assignment)
+                ->with('info', 'You have already submitted this assignment.');
+        }
+
+        // Check deadline
+        if ($assignment->deadline && $assignment->deadline < now()) {
+            return redirect()->route('student.assignments.show', $assignment)
+                ->with('error', 'The deadline for this assignment has passed.');
+        }
+
+        // Validate request - Fix field name here
+        $validator = Validator::make($request->all(), [
+            'code_submission' => 'nullable|string|max:50000',  // ✅ Correct field name
+            'submission_files.*' => 'nullable|file|max:10240|mimes:pdf,doc,docx,txt,zip,rar,jpg,jpeg,png',
+            'submission_text' => 'nullable|string|max:10000',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        // Fix the validation check - use correct field names
+        $hasCode = !empty(trim($request->code_submission ?? ''));  // ✅ Fixed
+        $hasFiles = $request->hasFile('submission_files');         // ✅ Fixed
+        $hasText = !empty(trim($request->submission_text ?? ''));  // ✅ Added text support
+
+        // Debug log
+        Log::info('Submission validation:', [
+            'hasCode' => $hasCode,
+            'hasFiles' => $hasFiles,
+            'hasText' => $hasText,
+            'code_length' => strlen($request->code_submission ?? ''),
+            'files_count' => $hasFiles ? count($request->file('submission_files')) : 0,
+            'text_length' => strlen($request->submission_text ?? ''),
+        ]);
+
+        if (!$hasCode && !$hasFiles && !$hasText) {
+            return redirect()->back()
+                ->with('error', 'Please provide at least one form of submission (code, file, or text).')
+                ->withInput();
+        }
+
+        DB::beginTransaction();
+
+        // Handle file uploads (multiple files)
+        $filePaths = [];
+        if ($hasFiles) {
+            foreach ($request->file('submission_files') as $file) {
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $path = $file->storeAs('submissions/' . $assignment->id, $fileName, 'public');
+                $filePaths[] = $path;
+            }
+        }
+
+        // Create submission using existing DB structure
+        $submission = Submission::create([
+            'assignment_id' => $assignment->id,
+            'student_id' => $user->id,
+            'code_content' => $request->code_submission,  // ✅ Map code_submission to code_content (DB field)
+            'file_path' => !empty($filePaths) ? json_encode($filePaths) : null,
+            'submission_text' => $request->submission_text, // Add if this field exists in DB
+            'submitted_at' => now(),
+            'status' => 'submitted'  // Changed from 'pending' to 'submitted'
+        ]);
+
+        // Debug: Verify what was saved
+        Log::info('Submission Created Successfully', [
+            'submission_id' => $submission->id,
+            'code_saved' => !empty($submission->code_content),
+            'code_length_saved' => strlen($submission->code_content ?? ''),
+            'files_saved' => !empty($submission->file_path),
+            'text_saved' => !empty($submission->submission_text ?? ''),
+        ]);
+
+        DB::commit();
+
+        return redirect()->route('student.assignments.show', $assignment)
+            ->with('success', 'Assignment submitted successfully!');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('Assignment Submission Error: ' . $e->getMessage(), [
+            'assignment_id' => $assignment->id ?? null,
+            'student_id' => $user->id ?? null,
+            'request_data' => $request->all(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return redirect()->back()
+            ->with('error', 'Failed to submit assignment. Please try again.')
+            ->withInput();
+    }
+}
+
+/**
+ * View student's submissions with filtering
+ */
+public function viewSubmissions(Request $request)
+{
+    try {
+        $user = Auth::user();
+        
+        // Get filter parameters
+        $courseId = $request->get('course');
+        $status = $request->get('status');
+        $search = $request->get('search');
+        
+        // Base query for student's submissions
+        $submissionsQuery = Submission::where('student_id', $user->id)
+            ->with(['assignment.course']);
+
+        // Apply course filter
+        if ($courseId) {
+            $submissionsQuery->whereHas('assignment', function($query) use ($courseId) {
+                $query->where('course_id', $courseId);
+            });
+        }
+
+        // Apply status filter
+        if ($status) {
+            $submissionsQuery->where('status', $status);
+        }
+
+        // Apply search filter
+        if ($search) {
+            $submissionsQuery->whereHas('assignment', function($query) use ($search) {
+                $query->where('title', 'like', "%{$search}%");
+            });
+        }
+
+        $submissions = $submissionsQuery->orderBy('submitted_at', 'desc')->paginate(10);
+
+        // Get enrolled courses for filter
+        $enrolledCourses = $user->enrolledCourses()->get();
+
+        // Get submission statistics
+        $stats = [
+            'total' => $user->submissions()->count(),
+            'pending' => $user->submissions()->where('status', 'pending')->count(),
+            'graded' => $user->submissions()->where('status', 'graded')->count(),
+            'average_grade' => $user->submissions()->where('status', 'graded')->avg('grade')
+        ];
+
+        $viewData = [
+            'meta_title' => 'My Submissions | Student Portal',
+            'meta_desc' => 'View your assignment submissions and grades',
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'submissions' => $submissions,
+            'enrolledCourses' => $enrolledCourses,
+            'stats' => $stats,
+            'currentFilters' => [
+                'course' => $courseId,
+                'status' => $status,
+                'search' => $search
+            ],
+            'user' => $user
+        ];
+
+        return view('student.submissions', $viewData);
+    } catch (\Exception $e) {
+        Log::error('Student Submissions Error: ' . $e->getMessage());
+        return view('student.submissions', [
+            'meta_title' => 'My Submissions | Student Portal',
+            'meta_desc' => 'View your assignment submissions',
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'submissions' => collect(),
+            'enrolledCourses' => collect(),
+            'stats' => ['total' => 0, 'pending' => 0, 'graded' => 0, 'average_grade' => 0],
+            'currentFilters' => ['course' => '', 'status' => '', 'search' => ''],
+            'user' => Auth::user()
+        ]);
+    }
+}
+
+/**
+ * View specific submission details
+ */
+public function viewSubmission(Submission $submission)
+{
+    try {
+        $user = Auth::user();
+
+        // Check if submission belongs to the student
+        if ($submission->student_id !== $user->id) {
+            return redirect()->route('student.submissions.index')
+                ->with('error', 'You can only view your own submissions.');
+        }
+
+        $viewData = [
+            'meta_title' => 'Submission Details | Student Portal',
+            'meta_desc' => 'View your submission details and feedback',
+            'meta_image' => url('pwa_assets/android-chrome-256x256.png'),
+            'submission' => $submission,
+            'user' => $user
+        ];
+
+        return view('student.submission-detail', $viewData);
+    } catch (\Exception $e) {
+        Log::error('Submission Detail Error: ' . $e->getMessage());
+        return redirect()->route('student.submissions.index')
+            ->with('error', 'Unable to load submission details.');
+    }
+}
+
+/**
+ * Download submission file
+ */
+public function downloadSubmissionFile(Submission $submission)
+{
+    try {
+        $user = Auth::user();
+
+        // Check if submission belongs to the student
+        if ($submission->student_id !== $user->id) {
+            abort(403, 'You can only download your own submission files.');
+        }
+
+        // Check if file exists
+        if (!$submission->file_path || !Storage::disk('public')->exists($submission->file_path)) {
+            abort(404, 'File not found.');
+        }
+
+        $filePath = storage_path('app/public/' . $submission->file_path);
+        
+        return response()->download($filePath, $submission->file_name);
+        
+    } catch (\Exception $e) {
+        Log::error('Submission File Download Error: ' . $e->getMessage());
+        abort(500, 'Unable to download file.');
+    }
+}
+
+// Helper methods for dashboard and other views
+private function getPendingAssignmentsCount()
+{
+    try {
+        $user = Auth::user();
+        return Assignment::whereHas('course', function($query) use ($user) {
+            $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
+        })
+        ->whereDoesntHave('submissions', function($query) use ($user) {
+            $query->where('student_id', $user->id);
+        })
+        ->where('status', 'active')
+        ->where('deadline', '>', now())
+        ->count();
+    } catch (\Exception $e) {
+        return 0;
+    }
+}
+
+private function getRecentGrades()
+{
+    try {
+        $user = Auth::user();
+        return Submission::where('student_id', $user->id)
+            ->where('status', 'graded')
+            ->with('assignment.course')
+            ->orderBy('graded_at', 'desc')
             ->limit(5)
             ->get();
-        } catch (\Exception $e) {
-            return collect();
-        }
+    } catch (\Exception $e) {
+        return collect();
     }
+}
+
+private function getUpcomingDeadlines()
+{
+    try {
+        $user = Auth::user();
+        return Assignment::whereHas('course', function($query) use ($user) {
+            $query->whereIn('id', $user->enrolledCourses()->pluck('course_id'));
+        })
+        ->whereDoesntHave('submissions', function($query) use ($user) {
+            $query->where('student_id', $user->id);
+        })
+        ->where('status', 'active')
+        ->where('deadline', '>', now())
+        ->where('deadline', '<=', now()->addDays(7))
+        ->orderBy('deadline', 'asc')
+        ->limit(5)
+        ->get();
+    } catch (\Exception $e) {
+        return collect();
+    }
+}
 
 }

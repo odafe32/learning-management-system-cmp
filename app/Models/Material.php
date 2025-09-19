@@ -48,14 +48,14 @@ class Material extends Model
         });
 
         static::deleting(function ($material) {
-            // Delete the file when material is deleted
             if ($material->file_path && Storage::disk('public')->exists($material->file_path)) {
                 Storage::disk('public')->delete($material->file_path);
             }
         });
     }
 
-    // Relationships
+    // ==================== RELATIONSHIPS ====================
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -71,7 +71,8 @@ class Material extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    // Scopes
+    // ==================== ENHANCED SCOPES WITH LEVEL FILTERING ====================
+
     public function scopeByInstructor($query, $instructorId)
     {
         return $query->where('user_id', $instructorId);
@@ -95,20 +96,122 @@ class Material extends Model
         return $query;
     }
 
-    public function scopeAccessibleToStudent($query, $studentId)
+    /**
+     * Scope to filter materials by course level
+     */
+    public function scopeByLevel($query, $level)
     {
-        return $query->where(function($q) use ($studentId) {
+        return $query->whereHas('course', function($q) use ($level) {
+            $q->where('level', $level);
+        });
+    }
+
+    /**
+     * Enhanced scope for student access with level filtering
+     */
+    public function scopeAccessibleToStudent($query, $studentId, $studentLevel = null)
+    {
+        return $query->where(function($q) use ($studentId, $studentLevel) {
+            // Public materials for student's level
             $q->where('visibility', 'public')
-              ->orWhere(function($subQ) use ($studentId) {
+              ->whereHas('course', function($courseQ) use ($studentLevel) {
+                  if ($studentLevel) {
+                      $courseQ->where('level', $studentLevel);
+                  }
+              })
+              // OR enrolled materials for student's enrolled courses
+              ->orWhere(function($subQ) use ($studentId, $studentLevel) {
                   $subQ->where('visibility', 'enrolled')
-                       ->whereHas('course.students', function($courseQ) use ($studentId) {
-                           $courseQ->where('user_id', $studentId);
+                       ->whereHas('course', function($courseQ) use ($studentId, $studentLevel) {
+                           $courseQ->whereHas('students', function($studentQ) use ($studentId) {
+                               $studentQ->where('user_id', $studentId)
+                                        ->where('status', 'active');
+                           });
+                           
+                           if ($studentLevel) {
+                               $courseQ->where('level', $studentLevel);
+                           }
                        });
               });
         });
     }
 
-    // Instructor Accessors & Mutators
+    /**
+     * Scope to get materials for student's enrolled courses only
+     */
+    public function scopeForEnrolledStudent($query, $studentId)
+    {
+        return $query->whereHas('course.students', function($q) use ($studentId) {
+            $q->where('user_id', $studentId)
+              ->where('status', 'active');
+        });
+    }
+
+    /**
+     * Scope to get materials for student's level and enrolled courses
+     */
+    public function scopeForStudentLevelAndEnrollment($query, $studentId, $studentLevel)
+    {
+        return $query->whereHas('course', function($q) use ($studentId, $studentLevel) {
+            $q->where('level', $studentLevel)
+              ->whereHas('students', function($studentQ) use ($studentId) {
+                  $studentQ->where('user_id', $studentId)
+                           ->where('status', 'active');
+              });
+        });
+    }
+
+    // ==================== ENHANCED ACCESS CONTROL METHODS ====================
+
+    /**
+     * Enhanced method to check if material is accessible to student
+     */
+    public function isAccessibleToStudent($studentId, $studentLevel = null)
+    {
+        // Check course level match if provided
+        if ($studentLevel && $this->course->level !== $studentLevel) {
+            return false;
+        }
+
+        if ($this->visibility === 'public') {
+            return true;
+        }
+        
+        if ($this->visibility === 'enrolled') {
+            return $this->course->students()
+                ->where('user_id', $studentId)
+                ->where('status', 'active')
+                ->exists();
+        }
+        
+        return false;
+    }
+
+    /**
+     * Enhanced method to check if material can be viewed by user
+     */
+    public function canBeViewedBy($user)
+    {
+        // Instructor can always view their own materials
+        if ($this->user_id === $user->id) {
+            return true;
+        }
+        
+        // Admin can view all materials
+        if ($user->role === 'admin') {
+            return true;
+        }
+        
+        // Students can view based on visibility, enrollment, and level
+        if ($user->role === 'student') {
+            return $this->isAccessibleToStudent($user->id, $user->level);
+        }
+        
+        return false;
+    }
+
+    // ==================== EXISTING ACCESSORS (UNCHANGED) ====================
+
     public function getFileUrlAttribute()
     {
         if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
@@ -141,7 +244,6 @@ class Material extends Model
         return null;
     }
 
-    // Student Accessors
     public function getStudentFileUrlAttribute()
     {
         if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
@@ -166,7 +268,6 @@ class Material extends Model
         return null;
     }
 
-    // Common Accessors
     public function getFileSizeFormattedAttribute()
     {
         if (!$this->file_size) return 'Unknown';
@@ -240,7 +341,8 @@ class Material extends Model
         return $this->file_type === 'pdf';
     }
 
-    // Static methods
+    // ==================== STATIC METHODS ====================
+
     public static function getVisibilityOptions()
     {
         return [
@@ -264,38 +366,5 @@ class Material extends Model
     {
         return 50 * 1024; // 50MB in KB
     }
-
-    // Helper methods
-    public function isAccessibleToStudent($studentId)
-    {
-        if ($this->visibility === 'public') {
-            return true;
-        }
-        
-        if ($this->visibility === 'enrolled') {
-            return $this->course->students()->where('user_id', $studentId)->exists();
-        }
-        
-        return false;
-    }
-
-    public function canBeViewedBy($user)
-    {
-        // Instructor can always view their own materials
-        if ($this->user_id === $user->id) {
-            return true;
-        }
-        
-        // Admin can view all materials
-        if ($user->role === 'admin') {
-            return true;
-        }
-        
-        // Students can view based on visibility and enrollment
-        if ($user->role === 'student') {
-            return $this->isAccessibleToStudent($user->id);
-        }
-        
-        return false;
-    }
 }
+

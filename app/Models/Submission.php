@@ -29,7 +29,7 @@ class Submission extends Model
     protected $fillable = [
         'assignment_id',
         'student_id',
-        'code_content',
+        'code_content',    // This is what exists in your DB
         'file_path',
         'status',
         'grade',
@@ -303,5 +303,36 @@ class Submission extends Model
             'E' => ['min' => 41, 'max' => 45, 'color' => 'orange'],
             'F' => ['min' => 0, 'max' => 40, 'color' => 'danger'],
         ];
+    }
+
+    // Additional helper methods to work with existing structure
+    public function hasCodeSubmission(): bool
+    {
+        return !empty($this->code_content);
+    }
+
+    public function getSubmissionTypesAttribute(): array
+    {
+        $types = [];
+        
+        if ($this->hasCodeSubmission()) {
+            $types[] = 'code';
+        }
+        
+        if ($this->hasFile()) {
+            $types[] = 'file';
+        }
+        
+        return $types;
+    }
+
+    // Get file name from path
+    public function getFileNameAttribute(): ?string
+    {
+        if (!$this->file_path) {
+            return null;
+        }
+        
+        return basename($this->file_path);
     }
 }

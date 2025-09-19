@@ -129,47 +129,151 @@
                             loading="lazy"
                             onerror="this.src='{{ asset('assets/images/thumbs/course-default.png') }}'"
                         >
-                        <!-- Course Status Badge -->
+                        <!-- Course Code and Level Badges -->
                         <div class="position-absolute top-12 start-12">
-                            <span class="badge bg-primary text-white px-8 py-4 rounded-4 fw-medium">
-                                {{ $course->code }}
-                            </span>
+                            <div class="d-flex flex-column gap-2">
+                                <span class="badge bg-primary-600 text-white px-8 py-4 rounded-4 fw-medium">
+                                    {{ $course->code }}
+                                </span>
+                                <span class="badge bg-warning-600 text-white px-8 py-4 rounded-4 fw-medium level-badge">
+                                    <iconify-icon icon="solar:graduation-cap-outline" class="icon me-1"></iconify-icon>
+                                    {{ $course->level }} Level
+                                </span>
+                            </div>
                         </div>
                         <!-- Course Status -->
                         <div class="position-absolute top-12 end-12">
                             {!! $course->status_badge !!}
                         </div>
+                        <!-- Semester Badge -->
+                        <div class="position-absolute bottom-12 end-12">
+                            <span class="badge bg-info-600 text-white px-8 py-4 rounded-4 fw-medium semester-badge">
+                                <iconify-icon icon="solar:calendar-outline" class="icon me-1"></iconify-icon>
+                                {{ ucfirst($course->semester) }} Sem
+                            </span>
+                        </div>
                         <!-- Quick Actions Overlay -->
-                        
+                        <div class="course-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
+                            <div class="d-flex gap-2">
+                                <a href="{{ route('student.courses.show', $course->slug) }}" 
+                                   class="btn btn-white btn-sm rounded-circle overlay-btn" 
+                                   title="View Course">
+                                    <iconify-icon icon="solar:eye-outline" class="icon"></iconify-icon>
+                                </a>
+                                <div class="dropdown">
+                                    <button class="btn btn-white btn-sm rounded-circle overlay-btn dropdown-toggle" 
+                                            type="button" 
+                                            data-bs-toggle="dropdown"
+                                            title="More Actions">
+                                        <iconify-icon icon="solar:menu-dots-outline" class="icon"></iconify-icon>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('student.materials.index') }}?course={{ $course->id }}">
+                                                <iconify-icon icon="solar:folder-outline" class="icon"></iconify-icon>
+                                                Materials ({{ $course->materials_count ?? 0 }})
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('student.assignments.index') }}?course={{ $course->id }}">
+                                                <iconify-icon icon="solar:document-text-outline" class="icon"></iconify-icon>
+                                                Assignments ({{ $course->assignments_count ?? 0 }})
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('student.submissions.index') }}?course={{ $course->id }}">
+                                                <iconify-icon icon="solar:file-check-outline" class="icon"></iconify-icon>
+                                                My Submissions
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('student.grades.index') }}?course={{ $course->id }}">
+                                                <iconify-icon icon="solar:medal-star-outline" class="icon"></iconify-icon>
+                                                Grades
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="card-body d-flex flex-column">
-                        <!-- Course Info -->
-                        <div class="flex-grow-1">
-                            <h6 class="course-title mb-2 text-break">{{ $course->title }}</h6>
-                            <p class="text-secondary-light text-sm mb-3 line-clamp-2">
-                                {{ $course->description ? Str::limit($course->description, 100) : 'No description available.' }}
-                            </p>
-
-                            <!-- Instructor Info -->
-                            <div class="d-flex align-items-center gap-3 mb-3 instructor-info">
-                                <div class="flex-shrink-0">
-                                    <img 
-                                        src="{{ $course->instructor->profile_image_url ?? asset('assets/images/default-avatar.png') }}" 
-                                        alt="{{ $course->instructor->name ?? 'Instructor' }}" 
-                                        class="instructor-avatar"
-                                        loading="lazy"
-                                        onerror="this.src='{{ asset('assets/images/default-avatar.png') }}'"
-                                    >
-                                </div>
-                                <div class="flex-grow-1 min-w-0">
-                                    <h6 class="instructor-name mb-0 text-break">{{ $course->instructor->name ?? 'Unknown Instructor' }}</h6>
-                                    <span class="text-xs text-secondary-light">{{ $course->instructor->department ?? 'N/A' }}</span>
+                        <!-- Course Header with Level -->
+                        <div class="course-header mb-3">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <h6 class="course-title mb-0 text-break flex-grow-1">{{ $course->title }}</h6>
+                                <div class="course-level-indicator ms-2">
+                                    <span class="badge bg-gradient-warning text-white px-10 py-6 rounded-pill fw-bold">
+                                        {{ $course->level }}L
+                                    </span>
                                 </div>
                             </div>
+                            <p class="text-secondary-light text-sm mb-0 line-clamp-2">
+                                {{ $course->description ? Str::limit($course->description, 100) : 'No description available.' }}
+                            </p>
+                        </div>
 
-                            <!-- Course Stats Grid -->
-                            <div class="course-stats-grid mb-3">
+                        <!-- Course Info Grid -->
+                        <div class="course-info-grid mb-3">
+                            <div class="info-card level-info">
+                                <div class="info-icon">
+                                    <iconify-icon icon="solar:graduation-cap-outline" class="icon text-warning-600"></iconify-icon>
+                                </div>
+                                <div class="info-content">
+                                    <span class="info-label">Level</span>
+                                    <span class="info-value">{{ $course->level }}</span>
+                                </div>
+                            </div>
+                            <div class="info-card semester-info">
+                                <div class="info-icon">
+                                    <iconify-icon icon="solar:calendar-outline" class="icon text-info-600"></iconify-icon>
+                                </div>
+                                <div class="info-content">
+                                    <span class="info-label">Semester</span>
+                                    <span class="info-value">{{ ucfirst($course->semester) }}</span>
+                                </div>
+                            </div>
+                            <div class="info-card credits-info">
+                                <div class="info-icon">
+                                    <iconify-icon icon="solar:star-outline" class="icon text-success-600"></iconify-icon>
+                                </div>
+                                <div class="info-content">
+                                    <span class="info-label">Credits</span>
+                                    <span class="info-value">{{ $course->credit_units }}</span>
+                                </div>
+                            </div>
+                            <div class="info-card enrollment-info">
+                                <div class="info-icon">
+                                    <iconify-icon icon="solar:check-circle-outline" class="icon text-primary-600"></iconify-icon>
+                                </div>
+                                <div class="info-content">
+                                    <span class="info-label">Status</span>
+                                    <span class="info-value">Enrolled</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Instructor Info -->
+                        <div class="d-flex align-items-center gap-3 mb-3 instructor-info">
+                            <div class="flex-shrink-0">
+                                <img 
+                                    src="{{ $course->instructor->profile_image_url ?? asset('assets/images/default-avatar.png') }}" 
+                                    alt="{{ $course->instructor->name ?? 'Instructor' }}" 
+                                    class="instructor-avatar"
+                                    loading="lazy"
+                                    onerror="this.src='{{ asset('assets/images/default-avatar.png') }}'"
+                                >
+                            </div>
+                            <div class="flex-grow-1 min-w-0">
+                                <h6 class="instructor-name mb-0 text-break">{{ $course->instructor->name ?? 'Unknown Instructor' }}</h6>
+                                <span class="text-xs text-secondary-light">{{ $course->instructor->department ?? 'N/A' }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Course Stats -->
+                        <div class="course-stats mb-3">
+                            <div class="stats-row">
                                 <div class="stat-item">
                                     <iconify-icon icon="solar:document-text-outline" class="icon text-secondary-light"></iconify-icon>
                                     <span class="text-xs text-secondary-light">{{ $course->assignments_count ?? 0 }} Assignments</span>
@@ -178,62 +282,54 @@
                                     <iconify-icon icon="solar:folder-outline" class="icon text-secondary-light"></iconify-icon>
                                     <span class="text-xs text-secondary-light">{{ $course->materials_count ?? 0 }} Materials</span>
                                 </div>
-                                <div class="stat-item">
-                                    <iconify-icon icon="solar:star-outline" class="icon text-secondary-light"></iconify-icon>
-                                    <span class="text-xs text-secondary-light">{{ $course->credit_units }} Credits</span>
-                                </div>
-                                <div class="stat-item">
-                                    <iconify-icon icon="solar:calendar-outline" class="icon text-secondary-light"></iconify-icon>
-                                    <span class="text-xs text-secondary-light">{{ $course->semester_display ?? 'N/A' }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Recent Activities -->
+                        @if(isset($course->recentActivities) && $course->recentActivities->count() > 0)
+                            <div class="recent-activities mb-3">
+                                <h6 class="text-sm fw-semibold mb-2 text-success-600">
+                                    <iconify-icon icon="solar:clock-circle-outline" class="icon"></iconify-icon>
+                                    Recent Activities
+                                </h6>
+                                <div class="activities-list">
+                                    @foreach($course->recentActivities->take(2) as $activity)
+                                        <div class="activity-item d-flex align-items-center gap-2 mb-1">
+                                            <iconify-icon icon="{{ $activity['type'] == 'material' ? 'solar:folder-outline' : 'solar:document-text-outline' }}" 
+                                                          class="icon text-xs text-secondary-light flex-shrink-0"></iconify-icon>
+                                            <span class="text-xs text-secondary-light text-break">{{ Str::limit($activity['title'], 25) }}</span>
+                                        </div>
+                                    @endforeach
                                 </div>
                             </div>
+                        @endif
 
-                            <!-- Recent Activities -->
-                            @if(isset($course->recentActivities) && $course->recentActivities->count() > 0)
-                                <div class="recent-activities mb-3">
-                                    <h6 class="text-sm fw-semibold mb-2 text-success-600">
-                                        <iconify-icon icon="solar:clock-circle-outline" class="icon"></iconify-icon>
-                                        Recent Activities
-                                    </h6>
-                                    <div class="activities-list">
-                                        @foreach($course->recentActivities->take(2) as $activity)
-                                            <div class="activity-item d-flex align-items-center gap-2 mb-1">
-                                                <iconify-icon icon="{{ $activity['type'] == 'material' ? 'solar:folder-outline' : 'solar:document-text-outline' }}" 
-                                                              class="icon text-xs text-secondary-light flex-shrink-0"></iconify-icon>
-                                                <span class="text-xs text-secondary-light text-break">{{ Str::limit($activity['title'], 25) }}</span>
-                                            </div>
-                                        @endforeach
-                                    </div>
+                        <!-- Upcoming Assignments -->
+                        @if(isset($course->upcomingAssignments) && $course->upcomingAssignments->count() > 0)
+                            <div class="upcoming-assignments mb-3">
+                                <h6 class="text-sm fw-semibold mb-2 text-warning-600">
+                                    <iconify-icon icon="solar:alarm-outline" class="icon"></iconify-icon>
+                                    Upcoming Deadlines
+                                </h6>
+                                <div class="assignments-list">
+                                    @foreach($course->upcomingAssignments->take(2) as $assignment)
+                                        <div class="assignment-item d-flex align-items-center justify-content-between mb-1">
+                                            <span class="text-xs text-break flex-grow-1">{{ Str::limit($assignment->title, 20) }}</span>
+                                            <span class="text-xs text-warning-600 fw-medium flex-shrink-0 ms-2">
+                                                {{ $assignment->deadline->format('M d') }}
+                                            </span>
+                                        </div>
+                                    @endforeach
                                 </div>
-                            @endif
-
-                            <!-- Upcoming Assignments -->
-                            @if(isset($course->upcomingAssignments) && $course->upcomingAssignments->count() > 0)
-                                <div class="upcoming-assignments mb-3">
-                                    <h6 class="text-sm fw-semibold mb-2 text-warning-600">
-                                        <iconify-icon icon="solar:alarm-outline" class="icon"></iconify-icon>
-                                        Upcoming Deadlines
-                                    </h6>
-                                    <div class="assignments-list">
-                                        @foreach($course->upcomingAssignments->take(2) as $assignment)
-                                            <div class="assignment-item d-flex align-items-center justify-content-between mb-1">
-                                                <span class="text-xs text-break flex-grow-1">{{ Str::limit($assignment->title, 20) }}</span>
-                                                <span class="text-xs text-warning-600 fw-medium flex-shrink-0 ms-2">
-                                                    {{ $assignment->deadline->format('M d') }}
-                                                </span>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
+                            </div>
+                        @endif
 
                         <!-- Action Buttons -->
                         <div class="course-actions d-flex gap-2 mt-auto">
                             <a href="{{ route('student.courses.show', $course->slug) }}" 
                                class="btn btn-primary flex-grow-1 course-action-btn">
                                 <iconify-icon icon="solar:eye-outline" class="icon"></iconify-icon>
-                                View Course
+                                View {{ $course->level }} Level Course
                             </a>
                             <div class="dropdown">
                                 <button class="btn btn-primary course-action-btn dropdown-toggle" 
@@ -289,7 +385,7 @@
                                 <iconify-icon icon="solar:user-plus-outline" class="icon"></iconify-icon>
                                 Browse Available Courses
                             </a>
-                            <a href="{{ route('student.dashboard') }}" class="btn btn-outline-secondary">
+                            <a href="{{ route('student.dashboard') }}" class="btn btn-secondary">
                                 <iconify-icon icon="solar:home-outline" class="icon"></iconify-icon>
                                 Back to Dashboard
                             </a>
@@ -371,6 +467,126 @@
     transform: scale(1.05);
 }
 
+/* Level and Semester Badges */
+.level-badge {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.semester-badge {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%) !important;
+    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.course-level-indicator .badge {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    font-size: 0.7rem;
+    min-width: 32px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Course Info Grid */
+.course-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.info-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+.info-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.info-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.info-icon .icon {
+    font-size: 16px;
+}
+
+.info-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.info-label {
+    font-size: 0.7rem;
+    color: #6b7280;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.info-value {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #374151;
+    line-height: 1.2;
+}
+
+/* Level Info Specific Styling */
+.level-info {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.level-info .info-value {
+    color: #d97706;
+    font-weight: 700;
+}
+
+/* Course Stats */
+.course-stats {
+    background: #f1f5f9;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+}
+
+.stat-item .icon {
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
 /* Course Overlay */
 .course-overlay {
     background: rgba(0, 0, 0, 0.7);
@@ -421,25 +637,6 @@
     font-size: 0.875rem;
     font-weight: 600;
     color: #374151;
-}
-
-/* Course Stats Grid */
-.course-stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 0;
-}
-
-.stat-item .icon {
-    font-size: 14px;
-    flex-shrink: 0;
 }
 
 /* Activities and Assignments */
@@ -546,6 +743,17 @@
     width: 16px;
 }
 
+/* Badge Improvements */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.025em;
+}
+
+/* Gradient Backgrounds */
+.bg-gradient-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
     .course-image-container {
@@ -569,9 +777,9 @@
         height: 48px !important;
     }
     
-    .course-stats-grid {
+    .course-info-grid {
         grid-template-columns: 1fr;
-        gap: 4px;
+        gap: 6px;
     }
     
     .course-actions {
@@ -585,6 +793,12 @@
     .overlay-btn {
         width: 36px;
         height: 36px;
+    }
+    
+    .level-badge,
+    .semester-badge {
+        font-size: 0.7rem;
+        padding: 4px 6px;
     }
 }
 
@@ -616,6 +830,12 @@
         font-size: 0.875rem;
         padding: 8px 16px;
     }
+    
+    .course-level-indicator .badge {
+        min-width: 28px;
+        height: 20px;
+        font-size: 0.65rem;
+    }
 }
 
 /* Loading States */
@@ -628,12 +848,6 @@
 @keyframes loading {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
-}
-
-/* Badge Improvements */
-.badge {
-    font-weight: 500;
-    letter-spacing: 0.025em;
 }
 
 /* Focus States */
@@ -707,7 +921,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    console.log('Student courses page loaded with enhanced features');
+    console.log('Student courses page loaded with enhanced level visibility');
 });
 </script>
 </x-student-layout>

@@ -59,10 +59,11 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     });    
 
     // Assignments - Enhanced with course filtering
-    Route::prefix('assignments')->name('assignments.')->group(function () {
+   Route::prefix('assignments')->name('assignments.')->group(function () {
         Route::get('/', [StudentController::class, 'ShowAssignments'])->name('index');
         Route::get('/submit-assignments', [StudentController::class, 'SubmitAssignments'])->name('submit-assignments');
         Route::get('/{assignment}', [StudentController::class, 'viewAssignment'])->name('show');
+        Route::get('/{assignment}/submit', [StudentController::class, 'SubmitAssignments'])->name('submit-form');
         Route::post('/{assignment}/submit', [StudentController::class, 'submitAssignment'])->name('submit');
         Route::get('/course/{course}', [StudentController::class, 'ShowAssignments'])->name('by-course');
     });
@@ -208,6 +209,7 @@ Route::middleware(['auth', 'role:instructor,lecturer'])->prefix('instructor')->n
         // Individual submission actions
         Route::get('/{submission}', [InstructorController::class, 'viewSubmissionDetail'])->name('show');
         Route::get('/{submission}/detail', [InstructorController::class, 'viewSubmissionDetail'])->name('detail');
+        Route::get('/submissions/{submission}/download-file', [InstructorController::class, 'downloadSubmissionFile'])->name('submissions.download-file');
         Route::post('/{submission}/grade', [InstructorController::class, 'gradeSubmission'])->name('store-grade');
         Route::put('/{submission}/grade', [InstructorController::class, 'gradeSubmission'])->name('update-grade');
     });

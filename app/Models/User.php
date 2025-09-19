@@ -763,22 +763,7 @@ class User extends Authenticatable
     /**
      * Check if user can access course
      */
-    public function canAccessCourse(Course $course): bool
-    {
-        if ($this->isAdmin()) {
-            return true;
-        }
-        
-        if ($this->isInstructor()) {
-            return $course->user_id === $this->id;
-        }
-        
-        if ($this->isStudent()) {
-            return $this->isEnrolledIn($course->id);
-        }
-        
-        return false;
-    }
+
 
     /**
      * Get user's courses based on role
@@ -819,4 +804,110 @@ class User extends Authenticatable
             'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
+
+    
+public function getAccessibleCourses()
+{
+    if (!$this->isStudent()) {
+        return collect();
+    }
+
+    return Course::forStudentAccess($this->id, $this->level, true)->get();
+}
+
+/**
+ * Get courses available for enrollment by student
+ */
+public function getAvailableCoursesForEnrollment()
+{
+    if (!$this->isStudent()) {
+        return collect();
+    }
+
+    return Course::availableForEnrollment($this->id, $this->level)->get();
+}
+
+/**
+ * Get assignments accessible to student
+ */
+public function getAccessibleAssignments()
+{
+    if (!$this->isStudent()) {
+        return collect();
+    }
+
+    return Assignment::forStudentLevelAndEnrollment($this->id, $this->level)->get();
+}
+
+/**
+ * Get materials accessible to student
+ */
+public function getAccessibleMaterials()
+{
+    if (!$this->isStudent()) {
+        return collect();
+    }
+
+    return Material::accessibleToStudent($this->id, $this->level)->get();
+}
+
+/**
+ * Check if user can access specific course
+ */
+public function canAccessCourse(Course $course): bool
+{
+    if ($this->isAdmin()) {
+        return true;
+    }
+    
+    if ($this->isInstructor()) {
+        return $course->user_id === $this->id;
+    }
+    
+    if ($this->isStudent()) {
+        return $course->isAccessibleToStudent($this->id, $this->level);
+    }
+    
+    return false;
+}
+
+/**
+ * Check if user can access specific assignment
+ */
+public function canAccessAssignment(Assignment $assignment): bool
+{
+    if ($this->isAdmin()) {
+        return true;
+    }
+    
+    if ($this->isInstructor()) {
+        return $assignment->user_id === $this->id;
+    }
+    
+    if ($this->isStudent()) {
+        return $assignment->isAccessibleToStudent($this->id, $this->level);
+    }
+    
+    return false;
+}
+
+/**
+ * Check if user can access specific material
+ */
+public function canAccessMaterial(Material $material): bool
+{
+    if ($this->isAdmin()) {
+        return true;
+    }
+    
+    if ($this->isInstructor()) {
+        return $material->user_id === $this->id;
+    }
+    
+    if ($this->isStudent()) {
+        return $material->canBeViewedBy($this);
+    }
+    
+    return false;
+}
 }

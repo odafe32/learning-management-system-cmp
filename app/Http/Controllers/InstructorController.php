@@ -1140,6 +1140,36 @@ public function createAssignment()
     return view('instructor.create-assignments', $viewData);
 }
 
+/**
+ * Download submission file
+ */
+public function downloadSubmissionFile(Submission $submission)
+{
+    try {
+        $user = Auth::user();
+        
+        // Check if instructor owns the assignment
+        if ($submission->assignment->user_id !== $user->id) {
+            abort(403, 'You can only download files from your own assignments.');
+        }
+        
+        // Check if file exists
+        if (!$submission->file_path || !Storage::disk('public')->exists($submission->file_path)) {
+            abort(404, 'File not found.');
+        }
+        
+        $filePath = storage_path('app/public/' . $submission->file_path);
+        $fileName = $submission->file_name ?: 'submission_file';
+        
+        return response()->download($filePath, $fileName);
+        
+    } catch (\Exception $e) {
+        Log::error('Submission File Download Error: ' . $e->getMessage());
+        abort(500, 'Unable to download file.');
+    }
+}
+
+
 public function storeAssignment(AssignmentRequest $request)
 {
     try {

@@ -78,7 +78,8 @@ class Assignment extends Model
         });
     }
 
-    // Scopes
+    // ==================== ENHANCED SCOPES WITH LEVEL FILTERING ====================
+
     public function scopeByInstructor($query, $instructorId)
     {
         return $query->where('user_id', $instructorId);
@@ -109,7 +110,86 @@ class Assignment extends Model
         return $query->where('status', 'draft');
     }
 
-    // Helper Methods
+    /**
+     * Scope to filter assignments by student level
+     */
+    public function scopeByLevel($query, $level)
+    {
+        return $query->whereHas('course', function($q) use ($level) {
+            $q->where('level', $level);
+        });
+    }
+
+    /**
+     * Scope to get assignments accessible to a specific student
+     * (based on enrollment and level)
+     */
+    public function scopeAccessibleToStudent($query, $studentId, $studentLevel = null)
+    {
+        return $query->whereHas('course', function($q) use ($studentId, $studentLevel) {
+            // Student must be enrolled in the course
+            $q->whereHas('students', function($studentQ) use ($studentId) {
+                $studentQ->where('user_id', $studentId)
+                         ->where('status', 'active');
+            });
+            
+            // If student level is provided, also filter by level
+            if ($studentLevel) {
+                $q->where('level', $studentLevel);
+            }
+        });
+    }
+
+    /**
+     * Scope to get assignments for student's enrolled courses only
+     */
+    public function scopeForEnrolledStudent($query, $studentId)
+    {
+        return $query->whereHas('course.students', function($q) use ($studentId) {
+            $q->where('user_id', $studentId)
+              ->where('status', 'active');
+        });
+    }
+
+    /**
+     * Scope to get assignments for student's level and enrolled courses
+     */
+    public function scopeForStudentLevelAndEnrollment($query, $studentId, $studentLevel)
+    {
+        return $query->whereHas('course', function($q) use ($studentId, $studentLevel) {
+            $q->where('level', $studentLevel)
+              ->whereHas('students', function($studentQ) use ($studentId) {
+                  $studentQ->where('user_id', $studentId)
+                           ->where('status', 'active');
+              });
+        });
+    }
+
+    /**
+     * Check if assignment is accessible to a specific student
+     */
+    public function isAccessibleToStudent($studentId, $studentLevel = null): bool
+    {
+        // Check if student is enrolled in the course
+        $isEnrolled = $this->course->students()
+            ->where('user_id', $studentId)
+            ->where('status', 'active')
+            ->exists();
+
+        if (!$isEnrolled) {
+            return false;
+        }
+
+        // If student level is provided, check level match
+        if ($studentLevel && $this->course->level !== $studentLevel) {
+            return false;
+        }
+
+        return true;
+    }
+
+    // ==================== EXISTING HELPER METHODS ====================
+
     public static function getStatuses(): array
     {
         return [
@@ -171,7 +251,6 @@ class Assignment extends Model
         try {
             return $this->submissions()->count();
         } catch (\Exception $e) {
-            // Handle case where submissions table doesn't exist yet
             return 0;
         }
     }
@@ -263,3 +342,5 @@ class Assignment extends Model
         }
     }
 }
+
+

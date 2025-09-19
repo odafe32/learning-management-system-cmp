@@ -403,15 +403,15 @@
                                         <tr>
                                             <td>
                                                 <h6 class="mb-1 text-break">{{ $assignment->title }}</h6>
-                                                <p class="text-sm text-secondary-light mb-0 line-clamp-2">{{ Str::limit($assignment->description, 80) }}</p>
+                                                <p class="text-sm text-black mb-0 line-clamp-2">{{ Str::limit($assignment->description, 80) }}</p>
                                             </td>
                                             <td>
                                                 @if($assignment->deadline)
                                                     <span class="text-sm">{{ $assignment->deadline->format('M d, Y') }}</span>
                                                     <br>
-                                                    <span class="text-xs text-secondary-light">{{ $assignment->deadline->format('h:i A') }}</span>
+                                                    <span class="text-xs text-black">{{ $assignment->deadline->format('h:i A') }}</span>
                                                 @else
-                                                    <span class="text-sm text-secondary-light">No deadline</span>
+                                                    <span class="text-sm text-black">No deadline</span>
                                                 @endif
                                             </td>
                                             <td>
@@ -431,7 +431,7 @@
                                                 @if($userSubmission && $userSubmission->status === 'graded' && $userSubmission->grade)
                                                     <span class="fw-medium">{{ $userSubmission->grade }}%</span>
                                                 @else
-                                                    <span class="text-secondary-light">-</span>
+                                                    <span class="text-black">-</span>
                                                 @endif
                                             </td>
                                             <td>

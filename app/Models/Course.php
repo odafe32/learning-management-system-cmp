@@ -14,18 +14,7 @@ class Course extends Model
 {
     use HasFactory, HasUuids;
 
-    /**
-     * The data type of the auto-incrementing ID.
-     *
-     * @var string
-     */
     protected $keyType = 'string';
-
-    /**
-     * Indicates if the IDs are auto-incrementing.
-     *
-     * @var bool
-     */
     public $incrementing = false;
 
     protected $fillable = [
@@ -48,41 +37,26 @@ class Course extends Model
 
     // ==================== RELATIONSHIPS ====================
 
-    /**
-     * Get the instructor who teaches this course
-     */
     public function instructor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    /**
-     * Get all assignments for this course
-     */
     public function assignments(): HasMany
     {
         return $this->hasMany(Assignment::class);
     }
 
-    /**
-     * Get all materials for this course
-     */
     public function materials(): HasMany
     {
         return $this->hasMany(Material::class);
     }
 
-    /**
-     * Get all submissions through assignments
-     */
     public function submissions()
     {
         return $this->hasManyThrough(Submission::class, Assignment::class);
     }
 
-    /**
-     * Get all enrolled students for this course
-     */
     public function students(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'course_student', 'course_id', 'user_id')
@@ -91,9 +65,6 @@ class Course extends Model
                     ->wherePivot('status', 'active');
     }
 
-    /**
-     * Get all students (including inactive enrollments)
-     */
     public function allStudents(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'course_student', 'course_id', 'user_id')
@@ -101,17 +72,11 @@ class Course extends Model
                     ->withTimestamps();
     }
 
-    /**
-     * Get course enrollments
-     */
     public function enrollments(): HasMany
     {
         return $this->hasMany(CourseStudent::class, 'course_id');
     }
 
-    /**
-     * Get active enrollments
-     */
     public function activeEnrollments(): HasMany
     {
         return $this->hasMany(CourseStudent::class, 'course_id')->where('status', 'active');
@@ -119,9 +84,6 @@ class Course extends Model
 
     // ==================== MODEL EVENTS ====================
 
-    /**
-     * Automatically generate slug when creating/updating
-     */
     protected static function boot()
     {
         parent::boot();
@@ -139,43 +101,28 @@ class Course extends Model
         });
     }
 
-    // ==================== QUERY SCOPES ====================
+    // ==================== ENHANCED QUERY SCOPES ====================
 
-    /**
-     * Scope to get active courses
-     */
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
     }
 
-    /**
-     * Scope to get courses by instructor
-     */
     public function scopeByInstructor($query, $userId)
     {
         return $query->where('user_id', $userId);
     }
 
-    /**
-     * Scope to get courses by level
-     */
     public function scopeByLevel($query, $level)
     {
         return $query->where('level', $level);
     }
 
-    /**
-     * Scope to get courses by semester
-     */
     public function scopeBySemester($query, $semester)
     {
         return $query->where('semester', $semester);
     }
 
-    /**
-     * Scope to get courses by department
-     */
     public function scopeByDepartment($query, $department)
     {
         return $query->whereHas('instructor', function($q) use ($department) {
@@ -183,9 +130,6 @@ class Course extends Model
         });
     }
 
-    /**
-     * Scope to get courses by faculty
-     */
     public function scopeByFaculty($query, $faculty)
     {
         return $query->whereHas('instructor', function($q) use ($faculty) {
@@ -193,9 +137,6 @@ class Course extends Model
         });
     }
 
-    /**
-     * Scope to search courses by title or code
-     */
     public function scopeSearch($query, $search)
     {
         return $query->where(function($q) use ($search) {
@@ -205,11 +146,111 @@ class Course extends Model
         });
     }
 
-    // ==================== ENROLLMENT METHODS ====================
+    /**
+     * Scope to get courses available for a student's level
+     */
+    public function scopeAvailableForLevel($query, $level)
+    {
+        return $query->where('level', $level)
+                    ->where('status', 'active');
+    }
 
     /**
-     * Get enrolled students count
+     * Scope to get courses that a student is not enrolled in
      */
+    public function scopeNotEnrolledByStudent($query, $studentId)
+    {
+        return $query->whereDoesntHave('students', function($q) use ($studentId) {
+            $q->where('user_id', $studentId)
+              ->where('status', 'active');
+        });
+    }
+
+    /**
+     * Scope to get courses available for enrollment by a specific student
+     */
+    public function scopeAvailableForEnrollment($query, $studentId, $studentLevel)
+    {
+        return $query->where('level', $studentLevel)
+                    ->where('status', 'active')
+                    ->whereDoesntHave('students', function($q) use ($studentId) {
+                        $q->where('user_id', $studentId)
+                          ->where('status', 'active');
+                    });
+    }
+
+    /**
+     * Scope to get courses enrolled by a specific student
+     */
+    public function scopeEnrolledByStudent($query, $studentId)
+    {
+        return $query->whereHas('students', function($q) use ($studentId) {
+            $q->where('user_id', $studentId)
+              ->where('status', 'active');
+        });
+    }
+
+    /**
+     * Scope to get courses for student's level and enrollment status
+     */
+    public function scopeForStudentAccess($query, $studentId, $studentLevel, $enrolledOnly = true)
+    {
+        $query = $query->where('level', $studentLevel)
+                      ->where('status', 'active');
+
+        if ($enrolledOnly) {
+            $query->whereHas('students', function($q) use ($studentId) {
+                $q->where('user_id', $studentId)
+                  ->where('status', 'active');
+            });
+        }
+
+        return $query;
+    }
+
+    // ==================== LEVEL-BASED ACCESS METHODS ====================
+
+    /**
+     * Check if course is accessible to a student based on level and enrollment
+     */
+    public function isAccessibleToStudent($studentId, $studentLevel): bool
+    {
+        // Check if course level matches student level
+        if ($this->level !== $studentLevel) {
+            return false;
+        }
+
+        // Check if student is enrolled
+        return $this->students()
+            ->where('user_id', $studentId)
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    /**
+     * Check if course is available for enrollment by a student
+     */
+    public function isAvailableForEnrollment($studentId, $studentLevel): bool
+    {
+        // Check if course is active
+        if ($this->status !== 'active') {
+            return false;
+        }
+
+        // Check if course level matches student level
+        if ($this->level !== $studentLevel) {
+            return false;
+        }
+
+        // Check if student is not already enrolled
+        return !$this->students()
+            ->where('user_id', $studentId)
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    // ==================== EXISTING METHODS (UNCHANGED) ====================
+
     public function getEnrolledStudentsCount(): int
     {
         try {
@@ -219,17 +260,11 @@ class Course extends Model
         }
     }
 
-    /**
-     * Check if a student is enrolled in this course
-     */
     public function hasStudent($userId): bool
     {
         return $this->students()->where('user_id', $userId)->exists();
     }
 
-    /**
-     * Enroll a student in this course
-     */
     public function enrollStudent($userId, $status = 'active'): bool
     {
         try {
@@ -248,9 +283,6 @@ class Course extends Model
         }
     }
 
-    /**
-     * Unenroll a student from this course
-     */
     public function unenrollStudent($userId): bool
     {
         try {
@@ -260,9 +292,6 @@ class Course extends Model
         }
     }
 
-    /**
-     * Update student enrollment status
-     */
     public function updateStudentStatus($userId, $status): bool
     {
         try {
@@ -278,9 +307,6 @@ class Course extends Model
 
     // ==================== ACCESSORS ====================
 
-    /**
-     * Get status badge HTML
-     */
     public function getStatusBadgeAttribute(): string
     {
         return match($this->status) {
@@ -291,9 +317,6 @@ class Course extends Model
         };
     }
 
-    /**
-     * Get course image URL
-     */
     public function getImageUrlAttribute(): string
     {
         return $this->image 
@@ -301,35 +324,23 @@ class Course extends Model
             : asset('assets/images/thumbs/course-default.png');
     }
 
-    /**
-     * Get course display name (code + title)
-     */
     public function getDisplayNameAttribute(): string
     {
         return "{$this->code} - {$this->title}";
     }
 
-    /**
-     * Get level display name
-     */
     public function getLevelDisplayAttribute(): string
     {
         $levels = self::getLevels();
         return $levels[$this->level] ?? $this->level;
     }
 
-    /**
-     * Get semester display name
-     */
     public function getSemesterDisplayAttribute(): string
     {
         $semesters = self::getSemesters();
         return $semesters[$this->semester] ?? $this->semester;
     }
 
-    /**
-     * Get course statistics
-     */
     public function getStatsAttribute(): array
     {
         try {
@@ -359,33 +370,21 @@ class Course extends Model
 
     // ==================== HELPER METHODS ====================
 
-    /**
-     * Check if course is active
-     */
     public function isActive(): bool
     {
         return $this->status === 'active';
     }
 
-    /**
-     * Check if course is draft
-     */
     public function isDraft(): bool
     {
         return $this->status === 'draft';
     }
 
-    /**
-     * Check if course is inactive
-     */
     public function isInactive(): bool
     {
         return $this->status === 'inactive';
     }
 
-    /**
-     * Get assignments count
-     */
     public function getAssignmentsCount(): int
     {
         try {
@@ -395,9 +394,6 @@ class Course extends Model
         }
     }
 
-    /**
-     * Get materials count
-     */
     public function getMaterialsCount(): int
     {
         try {
@@ -407,9 +403,6 @@ class Course extends Model
         }
     }
 
-    /**
-     * Get active assignments count
-     */
     public function getActiveAssignmentsCount(): int
     {
         try {
@@ -419,9 +412,6 @@ class Course extends Model
         }
     }
 
-    /**
-     * Get overdue assignments count
-     */
     public function getOverdueAssignmentsCount(): int
     {
         try {
@@ -434,9 +424,6 @@ class Course extends Model
         }
     }
 
-    /**
-     * Get upcoming assignments (due within next 7 days)
-     */
     public function getUpcomingAssignmentsCount(): int
     {
         try {
@@ -449,9 +436,6 @@ class Course extends Model
         }
     }
 
-    /**
-     * Get recent materials (uploaded in last 30 days)
-     */
     public function getRecentMaterialsCount(): int
     {
         try {
@@ -463,9 +447,6 @@ class Course extends Model
         }
     }
 
-    /**
-     * Get course progress percentage based on assignments
-     */
     public function getProgressPercentage(): float
     {
         try {
@@ -486,9 +467,6 @@ class Course extends Model
 
     // ==================== STATIC HELPER METHODS ====================
 
-    /**
-     * Get available levels
-     */
     public static function getLevels(): array
     {
         return [
@@ -499,9 +477,6 @@ class Course extends Model
         ];
     }
 
-    /**
-     * Get available semesters
-     */
     public static function getSemesters(): array
     {
         return [
@@ -510,9 +485,6 @@ class Course extends Model
         ];
     }
 
-    /**
-     * Get available statuses
-     */
     public static function getStatuses(): array
     {
         return [
@@ -522,9 +494,6 @@ class Course extends Model
         ];
     }
 
-    /**
-     * Get courses summary for dashboard
-     */
     public static function getDashboardSummary($instructorId = null): array
     {
         $query = self::query();
@@ -541,9 +510,6 @@ class Course extends Model
         ];
     }
 
-    /**
-     * Get popular courses (most assignments/materials)
-     */
     public static function getPopularCourses($limit = 5)
     {
         return self::withCount(['assignments', 'materials'])
@@ -553,33 +519,21 @@ class Course extends Model
             ->get();
     }
 
-    /**
-     * Format course for select dropdown
-     */
     public function getSelectOptionAttribute(): string
     {
         return "{$this->code} - {$this->title} ({$this->level_display})";
     }
 
-    /**
-     * Get course URL/route
-     */
     public function getUrlAttribute(): string
     {
         return route('courses.show', $this->slug);
     }
 
-    /**
-     * Check if course has content (assignments or materials)
-     */
     public function hasContent(): bool
     {
         return $this->getAssignmentsCount() > 0 || $this->getMaterialsCount() > 0;
     }
 
-    /**
-     * Get course activity status
-     */
     public function getActivityStatusAttribute(): string
     {
         if (!$this->isActive()) {

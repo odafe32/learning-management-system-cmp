@@ -592,9 +592,7 @@
                     <li class="sidebar-submenu__item {{ request()->routeIs('student.assignments.index') ? 'active' : '' }}">
                         <a href="{{ route('student.assignments.index') }}" class="sidebar-submenu__link {{ request()->routeIs('student.assignments.index') ? 'active' : '' }}">Assignment</a>
                     </li>
-                    <li class="sidebar-submenu__item {{ request()->routeIs('student.assignments.submit-assignments') ? 'active' : '' }}">
-                        <a href="{{ route('student.assignments.submit-assignments') }}" class="sidebar-submenu__link {{ request()->routeIs('student.assignments.submit-assignments') ? 'active' : '' }}">Submit Assignment</a>
-                    </li>
+                 
                 </ul>
                 <!-- Submenu End -->
             </li>
