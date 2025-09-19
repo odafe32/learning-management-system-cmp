@@ -63,7 +63,7 @@
                                 </span>
                                 {!! $course->status_badge !!}
                             </div>
-                            <div class="dropdown">
+                            {{-- <div class="dropdown">
                                 <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                     Actions
                                 </button>
@@ -81,7 +81,7 @@
                                         </a>
                                     </li>
                                 </ul>
-                            </div>
+                            </div> --}}
                         </div>
 
                         <!-- Course Image -->

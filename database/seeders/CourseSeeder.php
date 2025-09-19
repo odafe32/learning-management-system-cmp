@@ -7,6 +7,9 @@ use Illuminate\Database\Seeder;
 use App\Models\Course;
 use App\Models\User;
 use Illuminate\Support\Str;
+use Faker\Factory as Faker;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 class CourseSeeder extends Seeder
 {
@@ -15,6 +18,8 @@ class CourseSeeder extends Seeder
      */
     public function run(): void
     {
+        $faker = Faker::create();
+        
         // Get all instructors to assign courses to
         $instructors = User::where('role', 'instructor')->get();
 
@@ -33,6 +38,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'programming',
+                'keywords' => ['programming', 'coding', 'computer', 'development']
             ],
             [
                 'title' => 'Computer Appreciation and Applications',
@@ -42,6 +49,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 2,
                 'status' => 'active',
+                'image_category' => 'computer',
+                'keywords' => ['computer', 'technology', 'hardware', 'software']
             ],
             [
                 'title' => 'Programming Fundamentals I',
@@ -51,6 +60,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'coding',
+                'keywords' => ['coding', 'programming', 'c++', 'development']
             ],
             [
                 'title' => 'Programming Fundamentals II',
@@ -60,6 +71,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'programming',
+                'keywords' => ['programming', 'coding', 'algorithms', 'development']
             ],
             [
                 'title' => 'Digital Logic Design',
@@ -69,6 +82,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'electronics',
+                'keywords' => ['electronics', 'circuits', 'digital', 'logic']
             ],
 
             // 200 Level CMP Courses
@@ -80,6 +95,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'algorithms',
+                'keywords' => ['algorithms', 'data-structures', 'programming', 'computer-science']
             ],
             [
                 'title' => 'Object-Oriented Programming',
@@ -89,6 +106,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'programming',
+                'keywords' => ['java', 'oop', 'programming', 'software']
             ],
             [
                 'title' => 'Computer Architecture and Organization',
@@ -98,6 +117,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'hardware',
+                'keywords' => ['hardware', 'computer', 'processor', 'architecture']
             ],
             [
                 'title' => 'Discrete Mathematics for Computer Science',
@@ -107,6 +128,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'mathematics',
+                'keywords' => ['mathematics', 'logic', 'graphs', 'theory']
             ],
             [
                 'title' => 'Database Management Systems I',
@@ -116,6 +139,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'database',
+                'keywords' => ['database', 'sql', 'data', 'storage']
             ],
             [
                 'title' => 'Web Programming I',
@@ -125,6 +150,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'web-development',
+                'keywords' => ['web', 'html', 'css', 'javascript']
             ],
             [
                 'title' => 'Systems Analysis and Design',
@@ -134,6 +161,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'design',
+                'keywords' => ['design', 'systems', 'analysis', 'modeling']
             ],
 
             // 300 Level CMP Courses
@@ -145,6 +174,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'database',
+                'keywords' => ['database', 'nosql', 'distributed', 'optimization']
             ],
             [
                 'title' => 'Operating Systems',
@@ -154,6 +185,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'operating-systems',
+                'keywords' => ['operating-system', 'linux', 'windows', 'system']
             ],
             [
                 'title' => 'Software Engineering I',
@@ -163,6 +196,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'software-engineering',
+                'keywords' => ['software', 'engineering', 'development', 'project']
             ],
             [
                 'title' => 'Computer Networks',
@@ -172,6 +207,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'networking',
+                'keywords' => ['network', 'internet', 'tcp-ip', 'routing']
             ],
             [
                 'title' => 'Artificial Intelligence I',
@@ -181,6 +218,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'artificial-intelligence',
+                'keywords' => ['ai', 'machine-learning', 'artificial-intelligence', 'algorithms']
             ],
             [
                 'title' => 'Web Programming II',
@@ -190,6 +229,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'web-development',
+                'keywords' => ['web', 'php', 'python', 'nodejs']
             ],
             [
                 'title' => 'Mobile Application Development',
@@ -199,6 +240,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'mobile',
+                'keywords' => ['mobile', 'app', 'android', 'ios']
             ],
             [
                 'title' => 'Human-Computer Interaction',
@@ -208,6 +251,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'ui-ux',
+                'keywords' => ['ui', 'ux', 'design', 'interface']
             ],
             [
                 'title' => 'Compiler Design',
@@ -217,6 +262,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'draft',
+                'image_category' => 'programming',
+                'keywords' => ['compiler', 'programming', 'parsing', 'code']
             ],
 
             // 400 Level CMP Courses
@@ -228,6 +275,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'software-engineering',
+                'keywords' => ['software', 'testing', 'quality', 'engineering']
             ],
             [
                 'title' => 'Artificial Intelligence II',
@@ -237,6 +286,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'machine-learning',
+                'keywords' => ['ai', 'neural-networks', 'deep-learning', 'computer-vision']
             ],
             [
                 'title' => 'Cybersecurity and Information Assurance',
@@ -246,6 +297,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'cybersecurity',
+                'keywords' => ['security', 'cybersecurity', 'hacking', 'encryption']
             ],
             [
                 'title' => 'Data Science and Big Data Analytics',
@@ -255,6 +308,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'data-science',
+                'keywords' => ['data-science', 'big-data', 'analytics', 'visualization']
             ],
             [
                 'title' => 'Cloud Computing',
@@ -264,6 +319,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'cloud',
+                'keywords' => ['cloud', 'aws', 'azure', 'virtualization']
             ],
             [
                 'title' => 'Computer Graphics and Multimedia',
@@ -273,6 +330,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'graphics',
+                'keywords' => ['graphics', '3d', 'animation', 'multimedia']
             ],
             [
                 'title' => 'Distributed Systems',
@@ -282,6 +341,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'draft',
+                'image_category' => 'distributed-systems',
+                'keywords' => ['distributed', 'blockchain', 'consensus', 'systems']
             ],
             [
                 'title' => 'Advanced Computer Networks',
@@ -291,6 +352,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'networking',
+                'keywords' => ['network', 'wireless', 'performance', 'technology']
             ],
             [
                 'title' => 'Project Management in Computing',
@@ -300,6 +363,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'project-management',
+                'keywords' => ['project', 'management', 'agile', 'leadership']
             ],
             [
                 'title' => 'Final Year Project I',
@@ -309,6 +374,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'research',
+                'keywords' => ['research', 'project', 'thesis', 'academic']
             ],
             [
                 'title' => 'Final Year Project II',
@@ -318,6 +385,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 4,
                 'status' => 'active',
+                'image_category' => 'research',
+                'keywords' => ['research', 'project', 'presentation', 'documentation']
             ],
 
             // Statistics (STA) Courses
@@ -329,6 +398,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'statistics',
+                'keywords' => ['statistics', 'data', 'probability', 'analysis']
             ],
             [
                 'title' => 'Probability Theory I',
@@ -338,6 +409,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'mathematics',
+                'keywords' => ['probability', 'mathematics', 'statistics', 'theory']
             ],
             [
                 'title' => 'Statistical Inference I',
@@ -347,6 +420,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'statistics',
+                'keywords' => ['statistics', 'inference', 'hypothesis', 'testing']
             ],
             [
                 'title' => 'Regression Analysis',
@@ -356,6 +431,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'data-analysis',
+                'keywords' => ['regression', 'analysis', 'statistics', 'modeling']
             ],
             [
                 'title' => 'Design of Experiments',
@@ -365,6 +442,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'research',
+                'keywords' => ['experiment', 'design', 'research', 'anova']
             ],
             [
                 'title' => 'Time Series Analysis',
@@ -374,6 +453,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'data-analysis',
+                'keywords' => ['time-series', 'forecasting', 'analysis', 'data']
             ],
             [
                 'title' => 'Multivariate Statistics',
@@ -383,6 +464,8 @@ class CourseSeeder extends Seeder
                 'semester' => 'first',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'statistics',
+                'keywords' => ['multivariate', 'statistics', 'analysis', 'clustering']
             ],
             [
                 'title' => 'Statistical Computing',
@@ -392,8 +475,18 @@ class CourseSeeder extends Seeder
                 'semester' => 'second',
                 'credit_units' => 3,
                 'status' => 'active',
+                'image_category' => 'data-science',
+                'keywords' => ['r', 'statistics', 'computing', 'data']
             ],
         ];
+
+        // Create courses directory if it doesn't exist
+        if (!Storage::disk('public')->exists('courses')) {
+            Storage::disk('public')->makeDirectory('courses');
+        }
+
+        $imagesDownloaded = 0;
+        $imagesCached = 0;
 
         foreach ($courses as $courseData) {
             // Randomly assign to an instructor
@@ -410,6 +503,16 @@ class CourseSeeder extends Seeder
                 $counter++;
             }
 
+            // Generate course image (with caching)
+            $imageResult = $this->generateCourseImage($faker, $courseData);
+            $imagePath = $imageResult['path'];
+            
+            if ($imageResult['cached']) {
+                $imagesCached++;
+            } elseif ($imagePath) {
+                $imagesDownloaded++;
+            }
+
             Course::create([
                 'user_id' => $instructor->id,
                 'title' => $courseData['title'],
@@ -420,16 +523,17 @@ class CourseSeeder extends Seeder
                 'semester' => $courseData['semester'],
                 'credit_units' => $courseData['credit_units'],
                 'status' => $courseData['status'],
-                'image' => null, // You can add image paths here if needed
+                'image' => $imagePath,
             ]);
         }
 
         $this->command->info('Courses seeded successfully!');
         $this->command->info('Created ' . count($courses) . ' courses (CMP & STA) assigned to ' . $instructors->count() . ' instructors.');
+        $this->command->info("Images: {$imagesCached} cached, {$imagesDownloaded} downloaded");
         
         // Display statistics
-        $cmpCourses = collect($courses)->where('code', 'like', 'CMP%')->count();
-        $staCourses = collect($courses)->where('code', 'like', 'STA%')->count();
+        $cmpCourses = collect($courses)->filter(fn($course) => str_starts_with($course['code'], 'CMP'))->count();
+        $staCourses = collect($courses)->filter(fn($course) => str_starts_with($course['code'], 'STA'))->count();
         $level100 = collect($courses)->where('level', '100')->count();
         $level200 = collect($courses)->where('level', '200')->count();
         $level300 = collect($courses)->where('level', '300')->count();
@@ -442,5 +546,212 @@ class CourseSeeder extends Seeder
         $this->command->info("- 200 Level: {$level200}");
         $this->command->info("- 300 Level: {$level300}");
         $this->command->info("- 400 Level: {$level400}");
+    }
+
+    /**
+     * Check if image already exists in storage
+     */
+    private function checkExistingImage($courseCode): ?string
+    {
+        $courseSlug = Str::slug($courseCode);
+        $possibleExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+        
+        foreach ($possibleExtensions as $ext) {
+            $filename = "courses/{$courseSlug}.{$ext}";
+            if (Storage::disk('public')->exists($filename)) {
+                return $filename;
+            }
+            
+            // Also check with pattern that includes timestamp (from previous runs)
+            $files = Storage::disk('public')->files('courses');
+            foreach ($files as $file) {
+                if (str_contains($file, $courseSlug) && str_ends_with($file, ".{$ext}")) {
+                    return $file;
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Generate course image using Faker and Unsplash with caching
+     */
+    private function generateCourseImage($faker, $courseData): array
+    {
+        // First, check if image already exists
+        $existingImage = $this->checkExistingImage($courseData['code']);
+        if ($existingImage) {
+            $this->command->info("Using cached image for {$courseData['code']}: {$existingImage}");
+            return [
+                'path' => $existingImage,
+                'cached' => true
+            ];
+        }
+
+        try {
+            // Method 1: Use Unsplash API (recommended)
+            $imagePath = $this->downloadUnsplashImage($courseData);
+            if ($imagePath) {
+                $this->command->info("Downloaded Unsplash image for {$courseData['code']}: {$imagePath}");
+                return [
+                    'path' => $imagePath,
+                    'cached' => false
+                ];
+            }
+
+            // Method 2: Use Faker's image method with Lorem Picsum
+            $imagePath = $this->generateFakerImage($faker, $courseData);
+            if ($imagePath) {
+                $this->command->info("Generated Faker image for {$courseData['code']}: {$imagePath}");
+                return [
+                    'path' => $imagePath,
+                    'cached' => false
+                ];
+            }
+
+            // Method 3: Use Picsum with category-based seed
+            $imagePath = $this->generatePicsumImage($courseData);
+            if ($imagePath) {
+                $this->command->info("Generated Picsum image for {$courseData['code']}: {$imagePath}");
+                return [
+                    'path' => $imagePath,
+                    'cached' => false
+                ];
+            }
+
+        } catch (\Exception $e) {
+            $this->command->warn("Failed to generate image for {$courseData['code']}: " . $e->getMessage());
+        }
+
+        return [
+            'path' => null,
+            'cached' => false
+        ];
+    }
+
+    /**
+     * Download image from Unsplash API
+     */
+    private function downloadUnsplashImage($courseData): ?string
+    {
+        try {
+            // You'll need to get a free API key from https://unsplash.com/developers
+            $unsplashAccessKey = env('UNSPLASH_ACCESS_KEY');
+            
+            if (!$unsplashAccessKey) {
+                return null;
+            }
+
+            $keyword = $courseData['keywords'][0] ?? $courseData['image_category'];
+            
+            $response = Http::timeout(30)->get('https://api.unsplash.com/photos/random', [
+                'client_id' => $unsplashAccessKey,
+                'query' => $keyword,
+                'w' => 800,
+                'h' => 600,
+                'fit' => 'crop'
+            ]);
+
+            if ($response->successful()) {
+                $imageData = $response->json();
+                $imageUrl = $imageData['urls']['regular'];
+                
+                // Download and save the image with consistent naming
+                $imageContent = Http::timeout(30)->get($imageUrl)->body();
+                $filename = 'courses/' . Str::slug($courseData['code']) . '.jpg';
+                
+                Storage::disk('public')->put($filename, $imageContent);
+                
+                return $filename;
+            }
+        } catch (\Exception $e) {
+            // Fall back to other methods
+        }
+
+        return null;
+    }
+
+    /**
+     * Generate image using Faker
+     */
+    private function generateFakerImage($faker, $courseData): ?string
+    {
+        try {
+            $width = 800;
+            $height = 600;
+            
+            // Use Lorem Picsum with random seed
+            $imageUrl = "https://picsum.photos/{$width}/{$height}?random=" . rand(1, 1000);
+            
+            $imageContent = Http::timeout(30)->get($imageUrl)->body();
+            $filename = 'courses/' . Str::slug($courseData['code']) . '.jpg';
+            
+            Storage::disk('public')->put($filename, $imageContent);
+            
+            return $filename;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Generate image using Picsum with seed based on course
+     */
+    private function generatePicsumImage($courseData): ?string
+    {
+        try {
+            $width = 800;
+            $height = 600;
+            $seed = crc32($courseData['code']); // Generate consistent seed from course code
+            
+            $imageUrl = "https://picsum.photos/seed/{$seed}/{$width}/{$height}";
+            
+            $imageContent = Http::timeout(30)->get($imageUrl)->body();
+            $filename = 'courses/' . Str::slug($courseData['code']) . '.jpg';
+            
+            Storage::disk('public')->put($filename, $imageContent);
+            
+            return $filename;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Map course categories to appropriate image categories
+     */
+    private function mapCategoryToPicsum($category): string
+    {
+        $mapping = [
+            'programming' => 'tech',
+            'computer' => 'tech',
+            'coding' => 'tech',
+            'electronics' => 'tech',
+            'algorithms' => 'abstract',
+            'hardware' => 'tech',
+            'mathematics' => 'abstract',
+            'database' => 'tech',
+            'web-development' => 'tech',
+            'design' => 'abstract',
+            'operating-systems' => 'tech',
+            'software-engineering' => 'tech',
+            'networking' => 'tech',
+            'artificial-intelligence' => 'tech',
+            'mobile' => 'tech',
+            'ui-ux' => 'abstract',
+            'machine-learning' => 'tech',
+            'cybersecurity' => 'tech',
+            'data-science' => 'abstract',
+            'cloud' => 'tech',
+            'graphics' => 'abstract',
+            'distributed-systems' => 'tech',
+            'project-management' => 'business',
+            'research' => 'nature',
+            'statistics' => 'abstract',
+            'data-analysis' => 'abstract',
+        ];
+
+        return $mapping[$category] ?? 'tech';
     }
 }
