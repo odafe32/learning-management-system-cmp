@@ -69,6 +69,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     });
 
     // Material Routes
+
     Route::prefix('materials')->name('materials.')->group(function () {
         Route::get('/', [StudentController::class, 'viewMaterials'])->name('index');
         Route::get('/search', [StudentController::class, 'searchMaterials'])->name('search');
@@ -78,12 +79,14 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     });
 
     // Submission Management - Enhanced with filtering
-    Route::prefix('submissions')->name('submissions.')->group(function () {
-        Route::get('/', [StudentController::class, 'viewSubmissions'])->name('index');
-        Route::get('/{submission}', [StudentController::class, 'viewSubmission'])->name('show');
-        Route::get('/assignment/{assignment}', [StudentController::class, 'viewSubmissionsByAssignment'])->name('by-assignment');
-        Route::get('/course/{course}', [StudentController::class, 'viewSubmissions'])->name('by-course');
-    });
+        Route::prefix('submissions')->name('submissions.')->group(function () {
+            Route::get('/', [StudentController::class, 'viewSubmissions'])->name('index');
+            Route::get('/{submission}', [StudentController::class, 'viewSubmission'])->name('show');
+            Route::get('/{submission}/download', [StudentController::class, 'downloadSubmissionFile'])->name('download');
+            Route::get('/assignment/{assignment}', [StudentController::class, 'viewSubmissionsByAssignment'])->name('by-assignment');
+            Route::get('/course/{course}', [StudentController::class, 'viewSubmissions'])->name('by-course');
+        });
+
 
     // Grades Management - Enhanced with filtering
     Route::prefix('grades')->name('grades.')->group(function () {
@@ -93,22 +96,41 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
         Route::get('/export', [StudentController::class, 'exportGrades'])->name('export');
     });
 
+    // Add this route inside the student feedbacks group in routes/web.php
+
+// Feedbacks Management - Enhanced with filtering
+Route::prefix('feedbacks')->name('feedbacks.')->group(function () {
+    Route::get('/', [StudentController::class, 'viewFeedbacks'])->name('index');
+    Route::get('/search', [StudentController::class, 'searchFeedbacks'])->name('search');
+    Route::get('/export', [StudentController::class, 'exportFeedbacks'])->name('export');
+    Route::get('/{submission}', [StudentController::class, 'viewFeedback'])->name('show');
+    Route::get('/course/{course}', [StudentController::class, 'viewFeedbacksByCourse'])->name('by-course');
+});
     // Feedbacks Management - Enhanced with filtering
     Route::prefix('feedbacks')->name('feedbacks.')->group(function () {
         Route::get('/', [StudentController::class, 'viewFeedbacks'])->name('index');
         Route::get('/{submission}', [StudentController::class, 'viewFeedback'])->name('show');
         Route::get('/course/{course}', [StudentController::class, 'viewFeedbacks'])->name('by-course');
     });
+// Messages/Communication - Fixed routes
+Route::prefix('messages')->name('messages.')->group(function () {
+    Route::get('/', [StudentController::class, 'messages'])->name('index');
+    Route::post('/send', [StudentController::class, 'sendMessage'])->name('send');
+    Route::get('/conversation/{user}', [StudentController::class, 'getConversation'])->name('conversation');
+    Route::get('/search-users', [StudentController::class, 'searchUsers'])->name('search-users');
+    Route::post('/{message}/read', [StudentController::class, 'markAsRead'])->name('mark-read');
+    Route::post('/mark-all-read', [StudentController::class, 'markAllAsRead'])->name('mark-all-read');
+    Route::delete('/{message}', [StudentController::class, 'deleteMessage'])->name('delete');
+});
 
-    // Messages/Communication
-    Route::prefix('messages')->name('messages.')->group(function () {
-        Route::get('/', [StudentController::class, 'messages'])->name('index');
-        Route::post('/send', [StudentController::class, 'sendMessage'])->name('send');
-        Route::get('/conversation/{user}', [StudentController::class, 'getConversation'])->name('conversation');
-        Route::post('/{message}/read', [StudentController::class, 'markAsRead'])->name('mark-read');
-        Route::post('/mark-all-read', [StudentController::class, 'markAllAsRead'])->name('mark-all-read');
-        Route::delete('/{message}', [StudentController::class, 'deleteMessage'])->name('delete');
-    });
+// Notifications Management
+Route::prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [StudentController::class, 'getNotifications'])->name('index');
+    Route::get('/count', [StudentController::class, 'getNotificationCount'])->name('count');
+    Route::post('/mark-read', [StudentController::class, 'markNotificationAsRead'])->name('mark-read');
+    Route::delete('/{notification}', [StudentController::class, 'deleteNotification'])->name('delete');
+    Route::post('/clear-all', [StudentController::class, 'clearAllNotifications'])->name('clear-all');
+});
 
     // Announcements (if you plan to implement this)
     Route::prefix('announcements')->name('announcements.')->group(function () {

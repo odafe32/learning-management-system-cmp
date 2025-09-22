@@ -155,18 +155,9 @@
                         <!-- Quick Actions Overlay -->
                         <div class="course-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
                             <div class="d-flex gap-2">
-                                <a href="{{ route('student.courses.show', $course->slug) }}" 
-                                   class="btn btn-white btn-sm rounded-circle overlay-btn" 
-                                   title="View Course">
-                                    <iconify-icon icon="solar:eye-outline" class="icon"></iconify-icon>
-                                </a>
+                               
                                 <div class="dropdown">
-                                    <button class="btn btn-white btn-sm rounded-circle overlay-btn dropdown-toggle" 
-                                            type="button" 
-                                            data-bs-toggle="dropdown"
-                                            title="More Actions">
-                                        <iconify-icon icon="solar:menu-dots-outline" class="icon"></iconify-icon>
-                                    </button>
+                                    
                                     <ul class="dropdown-menu">
                                         <li>
                                             <a class="dropdown-item" href="{{ route('student.materials.index') }}?course={{ $course->id }}">

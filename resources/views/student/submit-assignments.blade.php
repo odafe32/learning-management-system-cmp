@@ -33,11 +33,8 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <h6 class="text-lg fw-semibold mb-0">Submit: {{ $assignment->title }}</h6>
                         <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-sm btn-outline-info" id="previewBtn">
-                                <i class="ph ph-eye me-1"></i>
-                                Preview
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="autoSaveStatus">
+                        
+                            <button type="button" class="btn btn-sm btn-secondary" id="autoSaveStatus">
                                 <i class="ph ph-floppy-disk me-1"></i>
                                 Auto-save: On
                             </button>
@@ -78,12 +75,12 @@
                                     File Upload
                                 </button>
                             </li>
-                            <li class="nav-item" role="presentation">
+                            {{-- <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-pane" type="button" role="tab">
                                     <i class="ph ph-text-aa me-2"></i>
                                     Text Submission
                                 </button>
-                            </li>
+                            </li> --}}
                         </ul>
 
                         <div class="tab-content" id="submissionTabContent">
@@ -115,7 +112,7 @@
                                                 <option value="monokai">Monokai</option>
                                                 <option value="dracula">Dracula</option>
                                             </select>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="fullscreenBtn">
+                                            <button type="button" class="btn btn-sm btn-secondary" id="fullscreenBtn">
                                                 <i class="ph ph-arrows-out"></i>
                                             </button>
                                         </div>
@@ -127,16 +124,16 @@
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <div class="d-flex gap-2">
                                                     @if($assignment->code_sample)
-                                                    <button type="button" class="btn btn-xs btn-outline-info" id="loadTemplateBtn">
+                                                    <button type="button" class="btn btn-xs btn-info" id="loadTemplateBtn">
                                                         <i class="ph ph-code me-1"></i>
                                                         Load Template
                                                     </button>
                                                     @endif
-                                                    <button type="button" class="btn btn-xs btn-outline-secondary" id="formatCodeBtn">
+                                                    <button type="button" class="btn btn-xs btn-secondary" id="formatCodeBtn">
                                                         <i class="ph ph-brackets-curly me-1"></i>
                                                         Format
                                                     </button>
-                                                    <button type="button" class="btn btn-xs btn-outline-danger" id="clearCodeBtn">
+                                                    <button type="button" class="btn btn-xs btn-danger" id="clearCodeBtn">
                                                         <i class="ph ph-trash me-1"></i>
                                                         Clear
                                                     </button>
@@ -194,7 +191,7 @@
                                         
                                         <div class="files-info d-none">
                                             <div id="filesList"></div>
-                                            <button type="button" class="btn btn-sm btn-outline-danger mt-12" onclick="clearAllFiles()">
+                                            <button type="button" class="btn btn-sm btn-danger mt-12" onclick="clearAllFiles()">
                                                 <i class="ph ph-trash me-1"></i>
                                                 Clear All Files
                                             </button>
@@ -941,7 +938,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="text-xs text-muted">${fileSize}</div>
                 </div>
             </div>
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeFile(${index})">
                 <i class="ph ph-x"></i>
             </button>
         `;

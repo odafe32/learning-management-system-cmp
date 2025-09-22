@@ -688,7 +688,10 @@
 </div>
     </div>
 
+<script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
 
+<!-- Or use the web component version -->
+<script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
     <script>
    document.addEventListener('DOMContentLoaded', function() {
         // Handle alert dismissal

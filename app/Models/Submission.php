@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Facades\Storage;
 
 class Submission extends Model
@@ -29,8 +30,9 @@ class Submission extends Model
     protected $fillable = [
         'assignment_id',
         'student_id',
-        'code_content',    // This is what exists in your DB
+        'code_content',
         'file_path',
+        'submission_text', // Add this if you have it in your database
         'status',
         'grade',
         'feedback',
@@ -46,7 +48,8 @@ class Submission extends Model
         'updated_at' => 'datetime',
     ];
 
-    // Relationships
+    // ==================== RELATIONSHIPS ====================
+
     public function assignment(): BelongsTo
     {
         return $this->belongsTo(Assignment::class);
@@ -57,7 +60,8 @@ class Submission extends Model
         return $this->belongsTo(User::class, 'student_id');
     }
 
-    // Scopes
+    // ==================== SCOPES ====================
+
     public function scopeByStudent($query, $studentId)
     {
         return $query->where('student_id', $studentId);
@@ -97,7 +101,261 @@ class Submission extends Model
         });
     }
 
-    // Helper Methods
+    // ==================== FILE HANDLING METHODS ====================
+
+    /**
+     * Get file paths as array (handles both JSON and single path)
+     */
+    public function getFilePathsArray(): array
+    {
+        if (empty($this->file_path)) {
+            return [];
+        }
+
+        // If it's already an array (shouldn't happen with current setup, but just in case)
+        if (is_array($this->file_path)) {
+            return $this->file_path;
+        }
+
+        // Try to decode as JSON first
+        $decoded = json_decode($this->file_path, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            return $decoded;
+        }
+
+        // If not JSON, treat as single file path
+        return [$this->file_path];
+    }
+
+    /**
+     * Check if submission has files (plural - for multiple files)
+     */
+    public function hasFiles(): bool
+    {
+        $paths = $this->getFilePathsArray();
+        return !empty($paths);
+    }
+
+    /**
+     * Check if submission has file (singular - for backward compatibility)
+     */
+    public function hasFile(): bool
+    {
+        return $this->hasFiles();
+    }
+
+    /**
+     * Get all files with metadata
+     */
+    public function getFiles(): array
+    {
+        $paths = $this->getFilePathsArray();
+        
+        return collect($paths)->map(function ($path) {
+            return [
+                'path' => $path,
+                'name' => basename($path),
+                'url' => Storage::url($path),
+                'download_url' => route('student.submissions.download', $this->id),
+                'exists' => Storage::disk('public')->exists($path),
+                'size' => Storage::disk('public')->exists($path) ? Storage::disk('public')->size($path) : 0,
+                'size_formatted' => Storage::disk('public')->exists($path) ? $this->formatFileSize(Storage::disk('public')->size($path)) : 'N/A',
+                'extension' => strtolower(pathinfo($path, PATHINFO_EXTENSION)),
+                'type' => $this->getFileType(strtolower(pathinfo($path, PATHINFO_EXTENSION))),
+                'icon' => $this->getFileIcon(strtolower(pathinfo($path, PATHINFO_EXTENSION))),
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Get first file (for single file display)
+     */
+    public function getFirstFile(): ?array
+    {
+        $files = $this->getFiles();
+        return !empty($files) ? $files[0] : null;
+    }
+
+    /**
+     * Get file URL (for backward compatibility - returns first file)
+     */
+    public function getFileUrl(): ?string
+    {
+        $firstFile = $this->getFirstFile();
+        return $firstFile ? $firstFile['url'] : null;
+    }
+
+    /**
+     * Get file name (for backward compatibility - returns first file name)
+     */
+    public function getFileNameAttribute(): ?string
+    {
+        $firstFile = $this->getFirstFile();
+        return $firstFile ? $firstFile['name'] : null;
+    }
+
+    /**
+     * Get file size (for backward compatibility - returns first file size)
+     */
+    public function getFileSizeAttribute(): ?int
+    {
+        $firstFile = $this->getFirstFile();
+        return $firstFile ? $firstFile['size'] : null;
+    }
+
+    /**
+     * Get formatted file size
+     */
+    public function getFormattedFileSizeAttribute(): string
+    {
+        $size = $this->file_size;
+        
+        if (!$size) {
+            return 'N/A';
+        }
+
+        return $this->formatFileSize($size);
+    }
+
+    /**
+     * Format file size in human readable format
+     */
+    private function formatFileSize(int $bytes): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $unitIndex = 0;
+        $size = $bytes;
+        
+        while ($size >= 1024 && $unitIndex < count($units) - 1) {
+            $size /= 1024;
+            $unitIndex++;
+        }
+        
+        return round($size, 2) . ' ' . $units[$unitIndex];
+    }
+
+    /**
+     * Get file type based on extension
+     */
+    private function getFileType(string $extension): string
+    {
+        $types = [
+            'pdf' => 'PDF Document',
+            'doc' => 'Word Document',
+            'docx' => 'Word Document',
+            'txt' => 'Text File',
+            'rtf' => 'Rich Text File',
+            'jpg' => 'Image',
+            'jpeg' => 'Image',
+            'png' => 'Image',
+            'gif' => 'Image',
+            'bmp' => 'Image',
+            'svg' => 'Image',
+            'mp3' => 'Audio File',
+            'wav' => 'Audio File',
+            'mp4' => 'Video File',
+            'avi' => 'Video File',
+            'mov' => 'Video File',
+            'zip' => 'Archive',
+            'rar' => 'Archive',
+            '7z' => 'Archive',
+            'tar' => 'Archive',
+            'gz' => 'Archive',
+        ];
+
+        return $types[$extension] ?? 'File';
+    }
+
+    /**
+     * Get file icon based on extension
+     */
+    private function getFileIcon(string $extension): string
+    {
+        $icons = [
+            'pdf' => 'file-pdf',
+            'doc' => 'file-word',
+            'docx' => 'file-word',
+            'txt' => 'file-text',
+            'rtf' => 'file-text',
+            'jpg' => 'file-image',
+            'jpeg' => 'file-image',
+            'png' => 'file-image',
+            'gif' => 'file-image',
+            'bmp' => 'file-image',
+            'svg' => 'file-image',
+            'mp3' => 'file-audio',
+            'wav' => 'file-audio',
+            'mp4' => 'file-video',
+            'avi' => 'file-video',
+            'mov' => 'file-video',
+            'zip' => 'file-archive',
+            'rar' => 'file-archive',
+            '7z' => 'file-archive',
+            'tar' => 'file-archive',
+            'gz' => 'file-archive',
+        ];
+
+        return $icons[$extension] ?? 'file';
+    }
+
+    // ==================== CONTENT CHECKING METHODS ====================
+
+    /**
+     * Check if submission has code content
+     */
+    public function hasCode(): bool
+    {
+        return !empty(trim($this->code_content ?? ''));
+    }
+
+    /**
+     * Check if submission has code content (alias for backward compatibility)
+     */
+    public function hasCodeSubmission(): bool
+    {
+        return $this->hasCode();
+    }
+
+    /**
+     * Check if submission has text content
+     */
+    public function hasText(): bool
+    {
+        return !empty(trim($this->submission_text ?? ''));
+    }
+
+    /**
+     * Check if submission has any content
+     */
+    public function hasContent(): bool
+    {
+        return $this->hasFiles() || $this->hasCode() || $this->hasText();
+    }
+
+    /**
+     * Get submission types
+     */
+    public function getSubmissionTypesAttribute(): array
+    {
+        $types = [];
+        
+        if ($this->hasCode()) {
+            $types[] = 'code';
+        }
+        
+        if ($this->hasFiles()) {
+            $types[] = 'file';
+        }
+
+        if ($this->hasText()) {
+            $types[] = 'text';
+        }
+        
+        return $types;
+    }
+
+    // ==================== STATUS AND GRADING METHODS ====================
+
     public static function getStatuses(): array
     {
         return [
@@ -142,7 +400,7 @@ class Submission extends Model
 
     public function isLate(): bool
     {
-        if (!$this->submitted_at || !$this->assignment) {
+        if (!$this->submitted_at || !$this->assignment || !$this->assignment->deadline) {
             return false;
         }
 
@@ -171,7 +429,6 @@ class Submission extends Model
 
         $grade = $this->grade;
         
-        // Updated grading scale
         if ($grade >= 70) return 'A';
         if ($grade >= 60) return 'B';
         if ($grade >= 50) return 'C';
@@ -188,13 +445,12 @@ class Submission extends Model
 
         $grade = $this->grade;
         
-        // Updated color scheme based on new grading scale
-        if ($grade >= 70) return 'text-success';      // A - Green
-        if ($grade >= 60) return 'text-info';         // B - Blue
-        if ($grade >= 50) return 'text-primary';      // C - Primary
-        if ($grade >= 46) return 'text-warning';      // D - Yellow
-        if ($grade >= 41) return 'text-orange';       // E - Orange
-        return 'text-danger';                          // F - Red
+        if ($grade >= 70) return 'text-success';
+        if ($grade >= 60) return 'text-info';
+        if ($grade >= 50) return 'text-primary';
+        if ($grade >= 46) return 'text-warning';
+        if ($grade >= 41) return 'text-orange';
+        return 'text-danger';
     }
 
     public function getGradeBadgeColorAttribute(): string
@@ -205,13 +461,12 @@ class Submission extends Model
 
         $grade = $this->grade;
         
-        // Updated badge colors based on new grading scale
-        if ($grade >= 70) return 'success';      // A - Green
-        if ($grade >= 60) return 'info';         // B - Blue
-        if ($grade >= 50) return 'primary';      // C - Primary
-        if ($grade >= 46) return 'warning';      // D - Yellow
-        if ($grade >= 41) return 'orange';       // E - Orange (you may need to add orange CSS)
-        return 'danger';                         // F - Red
+        if ($grade >= 70) return 'success';
+        if ($grade >= 60) return 'info';
+        if ($grade >= 50) return 'primary';
+        if ($grade >= 46) return 'warning';
+        if ($grade >= 41) return 'orange';
+        return 'danger';
     }
 
     public function getSubmissionTimeStatus(): string
@@ -226,48 +481,6 @@ class Submission extends Model
         }
 
         return 'On time';
-    }
-
-    public function getFileUrl(): ?string
-    {
-        if (!$this->file_path) {
-            return null;
-        }
-
-        return Storage::disk('public')->url($this->file_path);
-    }
-
-    public function hasFile(): bool
-    {
-        return !empty($this->file_path) && Storage::disk('public')->exists($this->file_path);
-    }
-
-    public function getFileSizeAttribute(): ?int
-    {
-        if (!$this->hasFile()) {
-            return null;
-        }
-
-        return Storage::disk('public')->size($this->file_path);
-    }
-
-    public function getFormattedFileSizeAttribute(): string
-    {
-        $size = $this->file_size;
-        
-        if (!$size) {
-            return 'N/A';
-        }
-
-        $units = ['B', 'KB', 'MB', 'GB'];
-        $unitIndex = 0;
-        
-        while ($size >= 1024 && $unitIndex < count($units) - 1) {
-            $size /= 1024;
-            $unitIndex++;
-        }
-        
-        return round($size, 2) . ' ' . $units[$unitIndex];
     }
 
     public function getTimeUntilDeadline(): ?string
@@ -305,34 +518,35 @@ class Submission extends Model
         ];
     }
 
-    // Additional helper methods to work with existing structure
-    public function hasCodeSubmission(): bool
+    // ==================== ACCESSOR ATTRIBUTES ====================
+
+    /**
+     * Get formatted submitted date
+     */
+    protected function formattedSubmittedDate(): Attribute
     {
-        return !empty($this->code_content);
+        return Attribute::make(
+            get: fn () => $this->submitted_at ? $this->submitted_at->format('M d, Y \a\t g:i A') : 'N/A'
+        );
     }
 
-    public function getSubmissionTypesAttribute(): array
+    /**
+     * Get formatted graded date
+     */
+    protected function formattedGradedDate(): Attribute
     {
-        $types = [];
-        
-        if ($this->hasCodeSubmission()) {
-            $types[] = 'code';
-        }
-        
-        if ($this->hasFile()) {
-            $types[] = 'file';
-        }
-        
-        return $types;
+        return Attribute::make(
+            get: fn () => $this->graded_at ? $this->graded_at->format('M d, Y \a\t g:i A') : 'N/A'
+        );
     }
 
-    // Get file name from path
-    public function getFileNameAttribute(): ?string
+    /**
+     * Get time ago for submitted date
+     */
+    protected function timeAgo(): Attribute
     {
-        if (!$this->file_path) {
-            return null;
-        }
-        
-        return basename($this->file_path);
+        return Attribute::make(
+            get: fn () => $this->submitted_at ? $this->submitted_at->diffForHumans() : 'N/A'
+        );
     }
 }

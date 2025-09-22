@@ -392,25 +392,25 @@ class User extends Authenticatable
     /**
      * Check if user can message another user
      */
-    public function canMessageUser(User $user): bool
-    {
-        // Admin can message anyone
-        if ($this->isAdmin()) {
-            return true;
-        }
+    // public function canMessageUser(User $user): bool
+    // {
+    //     // Admin can message anyone
+    //     if ($this->isAdmin()) {
+    //         return true;
+    //     }
 
-        // Students can message instructors and admins
-        if ($this->isStudent()) {
-            return $user->isInstructor() || $user->isAdmin();
-        }
+    //     // Students can message instructors and admins
+    //     if ($this->isStudent()) {
+    //         return $user->isInstructor() || $user->isAdmin();
+    //     }
 
-        // Instructors can message students and admins
-        if ($this->isInstructor()) {
-            return $user->isStudent() || $user->isAdmin();
-        }
+    //     // Instructors can message students and admins
+    //     if ($this->isInstructor()) {
+    //         return $user->isStudent() || $user->isAdmin();
+    //     }
 
-        return false;
-    }
+    //     return false;
+    // }
 
     // ==================== STATIC HELPER METHODS ====================
 
@@ -909,5 +909,79 @@ public function canAccessMaterial(Material $material): bool
     }
     
     return false;
+}
+
+/**
+ * Check if user can message another user
+ * Updated with proper restrictions for students
+ */
+public function canMessageUser(User $user): bool
+{
+    try {
+        // Admin can message anyone
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        // Instructors/Lecturers can message:
+        // - Students enrolled in their courses
+        // - Admins
+        // - Other instructors/lecturers
+        if ($this->isInstructor()) {
+            // Can message admins
+            if ($user->isAdmin()) {
+                return true;
+            }
+
+            // Can message other instructors/lecturers
+            if ($user->isInstructor()) {
+                return true;
+            }
+
+            // Can message students enrolled in their courses
+            if ($user->isStudent()) {
+                $studentCourseIds = CourseStudent::where('user_id', $user->id)
+                    ->where('status', 'active')
+                    ->pluck('course_id');
+                $instructorCourseIds = $this->taughtCourses()->pluck('id');
+                
+                return $studentCourseIds->intersect($instructorCourseIds)->isNotEmpty();
+            }
+        }
+
+        // Students can message:
+        // 1. Lecturers who teach courses for their level
+        // 2. Fellow students in the same level
+        // 3. Admins
+        if ($this->isStudent()) {
+            // Can message admins
+            if ($user->isAdmin()) {
+                return true;
+            }
+
+            // Can message lecturers who teach courses for their level
+            if ($user->isInstructor()) {
+                return $user->taughtCourses()
+                    ->where('level', $this->level)
+                    ->where('status', 'active')
+                    ->exists();
+            }
+
+            // Can message fellow students in the same level
+            if ($user->isStudent()) {
+                return $this->level === $user->level && $this->id !== $user->id;
+            }
+        }
+
+        return false;
+    } catch (\Exception $e) {
+        Log::error('Error checking message permissions', [
+            'error' => $e->getMessage(),
+            'sender_id' => $this->id,
+            'receiver_id' => $user->id
+        ]);
+
+        return false; // Deny access on error
+    }
 }
 }

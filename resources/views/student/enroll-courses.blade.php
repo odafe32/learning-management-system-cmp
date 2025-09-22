@@ -106,10 +106,8 @@
                         </div>
                         <!-- Quick Preview Overlay -->
                         <div class="course-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
-                            <button class="btn btn-white btn-sm rounded-circle preview-btn" 
-                                    onclick="previewCourse('{{ $course->id }}')"
-                                    title="Quick Preview">
-                                <iconify-icon icon="solar:eye-outline" class="icon"></iconify-icon>
+                            <button type="button" class="preview-btn rounded-circle" onclick="previewCourse('{{ $course->id }}', '{{ $course->title }}', '{{ $course->code }}', '{{ $course->level }}', '{{ ucfirst($course->semester) }}', '{{ $course->credit_units }}', '{{ $course->instructor->name ?? 'Unknown Instructor' }}', '{{ $course->instructor->department ?? 'N/A' }}', '{{ $course->description ? addslashes($course->description) : 'No description available.' }}', '{{ $course->students_count ?? 0 }}', '{{ $course->assignments_count ?? 0 }}', '{{ $course->materials_count ?? 0 }}')">
+                                <iconify-icon icon="solar:eye-outline" class="icon text-lg"></iconify-icon>
                             </button>
                         </div>
                     </div>
@@ -201,8 +199,16 @@
                             </div>
                         </div>
 
-                        <!-- Enroll Button -->
+                        <!-- Action Buttons -->
                         <div class="course-actions mt-auto">
+                            <div class="d-flex gap-2 mb-2">
+                                <button type="button" 
+                                        class="btn btn-primary flex-fill view-details-btn" 
+                                        onclick="previewCourse('{{ $course->id }}', '{{ $course->title }}', '{{ $course->code }}', '{{ $course->level }}', '{{ ucfirst($course->semester) }}', '{{ $course->credit_units }}', '{{ $course->instructor->name ?? 'Unknown Instructor' }}', '{{ $course->instructor->department ?? 'N/A' }}', '{{ $course->description ? addslashes($course->description) : 'No description available.' }}', '{{ $course->students_count ?? 0 }}', '{{ $course->assignments_count ?? 0 }}', '{{ $course->materials_count ?? 0 }}')">
+                                    <iconify-icon icon="solar:eye-outline" class="icon"></iconify-icon>
+                                    View Details
+                                </button>
+                            </div>
                             <button type="button" 
                                     class="btn btn-primary w-100 enroll-btn" 
                                     onclick="enrollInCourse('{{ $course->id }}', '{{ $course->title }}')"
@@ -289,22 +295,32 @@
 
 <!-- Course Preview Modal -->
 <div class="modal fade" id="previewModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header border-bottom">
                 <h5 class="modal-title">
                     <iconify-icon icon="solar:eye-outline" class="icon me-2"></iconify-icon>
-                    Course Preview
+                    Course Details
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="previewContent">
-                <div class="text-center py-4">
+            <div class="modal-body p-0" id="previewContent">
+                <div class="text-center py-5">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
                     <p class="mt-2">Loading course details...</p>
                 </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <iconify-icon icon="solar:close-circle-outline" class="icon"></iconify-icon>
+                    Close
+                </button>
+                <button type="button" class="btn btn-primary" id="enrollFromPreview" style="display: none;">
+                    <iconify-icon icon="solar:user-plus-outline" class="icon"></iconify-icon>
+                    Enroll Now
+                </button>
             </div>
         </div>
     </div>
@@ -312,6 +328,9 @@
 
 <!-- Alert Container -->
 <div id="alertContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
+
+<!-- Include Iconify -->
+<script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
 
 <!-- Custom Styles -->
 <style>
@@ -485,8 +504,8 @@
 }
 
 .preview-btn {
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -500,6 +519,17 @@
     transform: scale(1.1);
     background: #3b82f6;
     color: white;
+}
+
+/* View Details Button */
+.view-details-btn {
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.view-details-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
 
 /* Instructor Avatar */
@@ -596,6 +626,49 @@
     opacity: 0.8;
 }
 
+/* Course Preview Modal Styles */
+.course-preview-header {
+    background: skyblue;
+    color: white;
+    padding: 2rem;
+    margin: -1px -1px 0 -1px;
+}
+
+.course-preview-body {
+    padding: 2rem;
+}
+
+.preview-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.preview-info-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    border: 1px solid #e9ecef;
+}
+
+.preview-info-card .icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.preview-info-card h6 {
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+.preview-info-card p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
 /* Search Input Enhancement */
 .form-control:focus {
     border-color: #3b82f6;
@@ -646,8 +719,8 @@
     }
     
     .preview-btn {
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
     }
     
     .card-body {
@@ -658,6 +731,14 @@
     .semester-badge {
         font-size: 0.7rem;
         padding: 4px 6px;
+    }
+    
+    .preview-info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .course-preview-body {
+        padding: 1rem;
     }
 }
 
@@ -701,9 +782,15 @@
 }
 </style>
 
+<!-- Latest version -->
+<script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
+
+<!-- Or use the web component version -->
+<script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
 <!-- Enhanced JavaScript -->
 <script>
 let selectedCourseId = null;
+let currentPreviewCourse = null;
 const enrollmentBaseUrl = "{{ url('student/courses/enroll') }}";
 
 // Filter by semester
@@ -742,23 +829,172 @@ function clearSearch() {
     });
 }
 
-// Preview course (placeholder function)
-function previewCourse(courseId) {
+// Preview course with detailed information
+function previewCourse(courseId, title, code, level, semester, credits, instructor, department, description, studentsCount, assignmentsCount, materialsCount) {
+    currentPreviewCourse = {
+        id: courseId,
+        title: title,
+        code: code,
+        level: level,
+        semester: semester,
+        credits: credits,
+        instructor: instructor,
+        department: department,
+        description: description,
+        studentsCount: studentsCount,
+        assignmentsCount: assignmentsCount,
+        materialsCount: materialsCount
+    };
+
     const modal = new bootstrap.Modal(document.getElementById('previewModal'));
     modal.show();
     
-    // Simulate loading course details
+    // Show loading initially
+    document.getElementById('previewContent').innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading course details...</p>
+        </div>
+    `;
+    
+    // Simulate loading and then show course details
     setTimeout(() => {
         document.getElementById('previewContent').innerHTML = `
-            <div class="text-center">
-                <h6>Course Preview</h6>
-                <p>Course details would be loaded here...</p>
-                <button class="btn btn-primary" onclick="bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide()">
-                    Close Preview
-                </button>
+            <div class="course-preview-header">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <span class="badge bg-white text-primary px-3 py-2 rounded-pill fw-bold">${code}</span>
+                            <span class="badge bg-warning-600 text-white px-3 py-2 rounded-pill">Level ${level}</span>
+                        </div>
+                        <h4 class="mb-2">${title}</h4>
+                        <p class="mb-0 opacity-90">${semester} Semester • ${credits} Credit Units</p>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <div class="d-flex flex-column align-items-md-end gap-2">
+                            <div class="d-flex align-items-center gap-2 text-white">
+                                <iconify-icon icon="solar:users-group-rounded-outline" class="icon"></iconify-icon>
+                                <span>${studentsCount} Students Enrolled</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="course-preview-body">
+                <!-- Course Info Grid -->
+                <div class="preview-info-grid">
+                    <div class="preview-info-card">
+                        <iconify-icon icon="solar:graduation-cap-outline" class="icon text-warning-600"></iconify-icon>
+                        <h6>Level</h6>
+                        <p>${level}</p>
+                    </div>
+                    <div class="preview-info-card">
+                        <iconify-icon icon="solar:calendar-outline" class="icon text-info-600"></iconify-icon>
+                        <h6>Semester</h6>
+                        <p>${semester}</p>
+                    </div>
+                    <div class="preview-info-card">
+                        <iconify-icon icon="solar:star-outline" class="icon text-success-600"></iconify-icon>
+                        <h6>Credits</h6>
+                        <p>${credits} Units</p>
+                    </div>
+                    <div class="preview-info-card">
+                        <iconify-icon icon="solar:document-text-outline" class="icon text-primary-600"></iconify-icon>
+                        <h6>Assignments</h6>
+                        <p>${assignmentsCount} Available</p>
+                    </div>
+                    <div class="preview-info-card">
+                        <iconify-icon icon="solar:folder-outline" class="icon text-secondary-600"></iconify-icon>
+                        <h6>Materials</h6>
+                        <p>${materialsCount} Resources</p>
+                    </div>
+                    <div class="preview-info-card">
+                        <iconify-icon icon="solar:users-group-rounded-outline" class="icon text-purple-600"></iconify-icon>
+                        <h6>Enrolled</h6>
+                        <p>${studentsCount} Students</p>
+                    </div>
+                </div>
+                
+                <!-- Course Description -->
+                <div class="mb-4">
+                    <h5 class="mb-3">
+                        <iconify-icon icon="solar:document-text-outline" class="icon me-2"></iconify-icon>
+                        Course Description
+                    </h5>
+                    <div class="bg-light p-3 rounded">
+                        <p class="mb-0">${description}</p>
+                    </div>
+                </div>
+                
+                <!-- Instructor Information -->
+                <div class="mb-4">
+                    <h5 class="mb-3">
+                        <iconify-icon icon="solar:user-outline" class="icon me-2"></iconify-icon>
+                        Instructor Information
+                    </h5>
+                    <div class="bg-light p-3 rounded">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h6 class="mb-1">${instructor}</h6>
+                                <p class="text-muted mb-0">${department}</p>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <small class="text-muted">Course Instructor</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Course Features -->
+                <div class="mb-4">
+                    <h5 class="mb-3">
+                        <iconify-icon icon="solar:star-outline" class="icon me-2"></iconify-icon>
+                        What You'll Get
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <iconify-icon icon="solar:check-circle-outline" class="icon text-success me-2"></iconify-icon>
+                                    Access to all course materials
+                                </li>
+                                <li class="mb-2">
+                                    <iconify-icon icon="solar:check-circle-outline" class="icon text-success me-2"></iconify-icon>
+                                    ${assignmentsCount} assignments and quizzes
+                                </li>
+                                <li class="mb-2">
+                                    <iconify-icon icon="solar:check-circle-outline" class="icon text-success me-2"></iconify-icon>
+                                    Direct instructor communication
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <iconify-icon icon="solar:check-circle-outline" class="icon text-success me-2"></iconify-icon>
+                                    ${materialsCount} learning resources
+                                </li>
+                                <li class="mb-2">
+                                    <iconify-icon icon="solar:check-circle-outline" class="icon text-success me-2"></iconify-icon>
+                                    Progress tracking
+                                </li>
+                                <li class="mb-2">
+                                    <iconify-icon icon="solar:check-circle-outline" class="icon text-success me-2"></iconify-icon>
+                                    Certificate upon completion
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
-    }, 1000);
+        
+        // Show enroll button in modal footer
+        document.getElementById('enrollFromPreview').style.display = 'inline-block';
+    }, 800);
 }
 
 // Enroll in course
@@ -769,6 +1005,19 @@ function enrollInCourse(courseId, courseTitle) {
     const modal = new bootstrap.Modal(document.getElementById('enrollmentModal'));
     modal.show();
 }
+
+// Enroll from preview modal
+document.getElementById('enrollFromPreview').addEventListener('click', function() {
+    if (currentPreviewCourse) {
+        // Close preview modal
+        bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
+        
+        // Open enrollment modal
+        setTimeout(() => {
+            enrollInCourse(currentPreviewCourse.id, currentPreviewCourse.title);
+        }, 300);
+    }
+});
 
 // Confirm enrollment
 document.getElementById('confirmEnrollBtn').addEventListener('click', function() {
@@ -881,7 +1130,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    console.log('Enroll courses page loaded with enhanced level visibility');
+    console.log('Enroll courses page loaded with enhanced course preview functionality');
 });
 </script>
 </x-student-layout>

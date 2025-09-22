@@ -786,38 +786,38 @@
 
         
         <div class="dashboard-body">
-            @if (session('success'))
-    <div class="alert alert-success alert-dismissible fade show mb-24" role="alert" id="dashboardSuccessAlert">
-        <div class="d-flex align-items-center">
-            <i class="ph ph-check-circle text-success me-12 text-xl"></i>
-            <div class="flex-grow-1">
-                <h6 class="mb-4 text-success fw-semibold">Welcome!</h6>
-                <p class="mb-0 text-success-emphasis">{{ session('success') }}</p>
-            </div>
-            <button type="button" class="btn-close ms-12" data-dismiss="alert" aria-label="Close">
-                <i class="ph ph-x text-success"></i>
-            </button>
-        </div>
-    </div>
-@endif
+                            @if (session('success'))
+                    <div class="alert alert-success alert-dismissible fade show mb-24" role="alert" id="dashboardSuccessAlert">
+                        <div class="d-flex align-items-center">
+                            <i class="ph ph-check-circle text-success me-12 text-xl"></i>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-4 text-success fw-semibold">Welcome!</h6>
+                                <p class="mb-0 text-success-emphasis">{{ session('success') }}</p>
+                            </div>
+                            <button type="button" class="btn-close ms-12" data-dismiss="alert" aria-label="Close">
+                                <i class="ph ph-x text-success"></i>
+                            </button>
+                        </div>
+                    </div>
+                @endif
 
-@if (session('error'))
-    <div class="alert alert-danger alert-dismissible fade show mb-24" role="alert" id="dashboardErrorAlert">
-        <div class="d-flex align-items-center">
-            <i class="ph ph-warning-circle text-danger me-12 text-xl"></i>
-            <div class="flex-grow-1">
-                <h6 class="mb-4 text-danger fw-semibold">Error!</h6>
-                <p class="mb-0 text-danger-emphasis">{{ session('error') }}</p>
-            </div>
-            <button type="button" class="btn-close ms-12" data-dismiss="alert" aria-label="Close">
-                <i class="ph ph-x text-danger"></i>
-            </button>
-        </div>
-    </div>
-@endif
+            @if (session('error'))
+                <div class="alert alert-danger alert-dismissible fade show mb-24" role="alert" id="dashboardErrorAlert">
+                    <div class="d-flex align-items-center">
+                        <i class="ph ph-warning-circle text-danger me-12 text-xl"></i>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-4 text-danger fw-semibold">Error!</h6>
+                            <p class="mb-0 text-danger-emphasis">{{ session('error') }}</p>
+                        </div>
+                        <button type="button" class="btn-close ms-12" data-dismiss="alert" aria-label="Close">
+                            <i class="ph ph-x text-danger"></i>
+                        </button>
+                    </div>
+                </div>
+            @endif
 
      
-            <div >
+            <div>
                 {{ $slot }}
             </div>
            
@@ -829,7 +829,10 @@
     </div>
 </div>
     </div>
+<script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
 
+<!-- Or use the web component version -->
+<script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Notification system variables

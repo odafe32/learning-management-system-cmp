@@ -168,13 +168,14 @@
         opacity: 0.7;
         pointer-events: none;
     }
+/* Updated Notification System Styles - Clean & Professional */
 
-  /* Notification Badge */
+/* Notification Badge - Clean red design */
 .notification-badge {
     position: absolute;
     top: -8px;
     right: -8px;
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: #dc3545;
     color: white;
     font-size: 10px;
     font-weight: 600;
@@ -185,185 +186,158 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
     border: 2px solid white;
-    animation: pulse 2s infinite;
-}
-
-/* Shaking Animation for Notification Bell */
-@keyframes shake {
-    0%, 100% { transform: rotate(0deg); }
-    10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
-    20%, 40%, 60%, 80% { transform: rotate(10deg); }
-}
-
-.shaking-animation {
-    animation: shake 0.5s ease-in-out infinite;
-}
-
-/* Pulse Animation for Badge */
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-    }
 }
 
 /* Notification Dropdown */
 .dropdown-menu--lg {
     min-width: 380px;
     max-width: 420px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
-@media (max-width: 768px) {
-    .dropdown-menu--lg {
-        min-width: 320px;
-        max-width: 350px;
-        margin-right: 10px;
-    }
-}
-
-/* Notification Items */
+/* Notification Items - Clean styling */
 .notification-item {
     transition: all 0.2s ease;
     cursor: pointer;
     border-radius: 8px;
     margin: 4px 8px;
+    background: white;
 }
 
 .notification-item:hover {
-    background-color: var(--gray-50, #f9fafb) !important;
+    background-color: #f8f9fa !important;
     transform: translateX(2px);
 }
 
-.notification-item:last-child {
-    border-bottom: none !important;
-}
-
-/* Unread Notification Styling */
+/* Unread Notification - Subtle blue accent */
 .bg-primary-25 {
-    background-color: rgba(99, 102, 241, 0.05) !important;
-    border-left: 3px solid var(--main-600, #6366f1);
+    background-color: #f8f9ff !important;
+    border-left: 3px solid #6366f1;
 }
 
-/* Notification Action Buttons */
+/* Notification Type Colors - Professional palette */
+.notification-icon-bg-assignment { background-color: #fff3cd; color: #856404; }
+.notification-icon-bg-course { background-color: #d1ecf1; color: #0c5460; }
+.notification-icon-bg-material { background-color: #d4edda; color: #155724; }
+.notification-icon-bg-grade { background-color: #f8d7da; color: #721c24; }
+.notification-icon-bg-system { background-color: #e2e3e5; color: #383d41; }
+.notification-icon-bg-warning { background-color: #fff3cd; color: #856404; }
+.notification-icon-bg-info { background-color: #d1ecf1; color: #0c5460; }
+.notification-icon-bg-success { background-color: #d4edda; color: #155724; }
+.notification-icon-bg-error { background-color: #f8d7da; color: #721c24; }
+
+/* Notification Action Buttons - Clean design */
 .mark-read-btn,
 .delete-notification-btn {
     transition: all 0.2s ease;
     text-decoration: none !important;
     font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.mark-read-btn {
+    color: #6366f1;
+    background: transparent;
+    border: 1px solid #e5e7eb;
 }
 
 .mark-read-btn:hover {
-    background-color: rgba(99, 102, 241, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
+    background-color: #6366f1;
+    color: white;
+    border-color: #6366f1;
+}
+
+.delete-notification-btn {
+    color: #dc3545;
+    background: transparent;
+    border: 1px solid #e5e7eb;
 }
 
 .delete-notification-btn:hover {
-    background-color: rgba(239, 68, 68, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+/* Notification Header - Professional gradient */
+.notification-header {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
 }
 
 /* Notification Loading States */
 .notification-loading {
-    color: var(--gray-500, #6b7280);
+    color: #6b7280;
     font-size: 14px;
+    text-align: center;
+    padding: 2rem;
 }
 
-.notification-loading .spinner-border-sm {
-    width: 1rem;
-    height: 1rem;
-}
-
-/* Notification Header Actions */
+/* Header Action Buttons - Clean white buttons */
 #refreshNotifications,
 #clearAllNotifications {
-    transition: all 0.2s ease;
+    background: white;
+    color: #374151;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
     font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 #refreshNotifications:hover,
 #clearAllNotifications:hover {
+    background: #f3f4f6;
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-#refreshNotifications:disabled,
-#clearAllNotifications:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
+/* Empty State */
+.notification-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6b7280;
 }
 
-/* Notification Icon Containers */
-.notification-item .w-40.h-40 {
-    flex-shrink: 0;
-    transition: all 0.2s ease;
+.notification-empty i {
+    font-size: 3rem;
+    color: #d1d5db;
+    margin-bottom: 1rem;
 }
 
-.notification-item:hover .w-40.h-40 {
-    transform: scale(1.05);
-}
-
-/* Notification Content */
+/* Notification Content Typography */
 .notification-item h6 {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 600;
     line-height: 1.3;
     margin-bottom: 4px;
 }
 
 .notification-item p {
+    color: #6b7280;
+    font-size: 12px;
     line-height: 1.4;
     margin-bottom: 8px;
 }
 
-/* Notification Time */
 .notification-item small {
+    color: #9ca3af;
     font-size: 11px;
-    opacity: 0.8;
 }
 
-/* Empty State */
-.notification-item .text-center {
-    padding: 2rem 1rem;
+/* Unread notification text styling */
+.bg-primary-25 h6 {
+    color: #1f2937;
+    font-weight: 700;
 }
 
-.notification-item .text-center i {
-    opacity: 0.5;
-    margin-bottom: 0.75rem;
-}
-
-/* Notification Dropdown Animation */
-.dropdown-menu {
-    animation: slideDown 0.2s ease-out;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Close Dropdown Button */
-.close-dropdown {
-    transition: all 0.2s ease;
-}
-
-.close-dropdown:hover {
-    transform: rotate(90deg);
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
+.bg-primary-25 p {
+    color: #374151;
 }
 
 /* Notification Scroll */
@@ -389,44 +363,17 @@
     background: #94a3b8;
 }
 
-/* Notification Type Colors */
-.bg-primary-50 { background-color: rgba(99, 102, 241, 0.1) !important; }
-.bg-success-50 { background-color: rgba(34, 197, 94, 0.1) !important; }
-.bg-warning-50 { background-color: rgba(245, 158, 11, 0.1) !important; }
-.bg-danger-50 { background-color: rgba(239, 68, 68, 0.1) !important; }
-.bg-info-50 { background-color: rgba(59, 130, 246, 0.1) !important; }
-.bg-secondary-50 { background-color: rgba(107, 114, 128, 0.1) !important; }
-
-.text-primary-600 { color: #6366f1 !important; }
-.text-success-600 { color: #22c55e !important; }
-.text-warning-600 { color: #f59e0b !important; }
-.text-danger-600 { color: #ef4444 !important; }
-.text-info-600 { color: #3b82f6 !important; }
-.text-secondary-600 { color: #6b7280 !important; }
-
-/* Responsive Adjustments */
-@media (max-width: 576px) {
-    .notification-badge {
-        font-size: 9px;
-        padding: 1px 4px;
-        min-width: 16px;
-        height: 16px;
-    }
-    
+/* Responsive Design */
+@media (max-width: 768px) {
     .dropdown-menu--lg {
-        min-width: 280px;
-        max-width: 300px;
-        margin-left: -100px;
+        min-width: 320px;
+        max-width: 350px;
+        margin-right: 10px;
     }
     
     .notification-item {
         margin: 2px 4px;
         padding: 12px !important;
-    }
-    
-    .notification-item .w-40.h-40 {
-        width: 32px !important;
-        height: 32px !important;
     }
     
     .notification-item h6 {
@@ -438,95 +385,10 @@
     }
 }
 
-/* Loading Spinner Animations */
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.spinner-border {
-    animation: spin 1s linear infinite;
-}
-
-/* Notification Button States */
-.refresh-loading,
-.clear-loading {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* Hover Effects for Notification Bell */
-.dropdown-btn:hover {
-    transform: scale(1.05);
-    background-color: var(--main-100, #e0e7ff) !important;
-}
-
-.dropdown-btn:active {
-    transform: scale(0.95);
-}
-
-/* Focus States for Accessibility */
-.dropdown-btn:focus,
-.mark-read-btn:focus,
-.delete-notification-btn:focus,
-#refreshNotifications:focus,
-#clearAllNotifications:focus {
-    outline: 2px solid var(--main-600, #6366f1);
-    outline-offset: 2px;
-}
-
-/* Notification Footer */
-.notification-footer {
-    background-color: var(--gray-25, #fafafa);
-    border-top: 1px solid var(--gray-100, #f3f4f6);
-}
-
-/* Error State Styling */
-.notification-error {
-    color: var(--danger-600, #ef4444);
-}
-
-.notification-error i {
-    color: var(--danger-600, #ef4444);
-}
-
-.notification-error .btn {
-    font-size: 12px;
-    padding: 4px 12px;
-}
-
-/* Success State for Actions */
-.notification-success {
-    background-color: rgba(34, 197, 94, 0.1);
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    color: #166534;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    margin: 8px;
-    animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-5px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Dark Mode Support (if needed) */
-@media (prefers-color-scheme: dark) {
-    .notification-item {
-        background-color: var(--dark-bg, #1f2937);
-        color: var(--dark-text, #f9fafb);
-    }
-    
-    .notification-item:hover {
-        background-color: var(--dark-hover, #374151) !important;
-    }
-    
-    .bg-primary-25 {
-        background-color: rgba(99, 102, 241, 0.15) !important;
-    }
+/* Remove weird color classes */
+.bg-primary-50, .bg-success-50, .bg-warning-50, .bg-danger-50, .bg-info-50, .bg-secondary-50,
+.text-primary-600, .text-success-600, .text-warning-600, .text-danger-600, .text-info-600, .text-secondary-600 {
+    /* Reset these to use our custom classes instead */
 }
     </style>
 </head>
@@ -640,6 +502,20 @@
                     </li>
                 </ul>
                 <!-- Submenu End -->
+            </li>
+
+            <!-- Messages -->
+            <li class="sidebar-menu__item has-dropdown {{ request()->routeIs('student.messages.*') ? 'active open' : '' }}">
+                <a href="{{ route('student.materials.index') }}" class="sidebar-menu__link {{ request()->routeIs('student.messages.*') ? 'active' : '' }}">
+                    <span class="icon"><i class="ph ph-envelope"></i></span>
+                    <span class="text">Messages</span>
+                </a>
+                <!-- Submenu start -->
+                <ul class="sidebar-submenu" style="{{ request()->routeIs('student.messages.*') ? 'display: block;' : '' }}">
+                    <li class="sidebar-submenu__item {{ request()->routeIs('student.messages.index') ? 'active' : '' }}">
+                        <a href="{{ route('student.messages.index') }}" class="sidebar-submenu__link {{ request()->routeIs('student.messages.index') ? 'active' : '' }}">View Messages</a>
+                    </li>
+                </ul>
             </li>
 
             <!-- Feedbacks -->
@@ -774,13 +650,14 @@
                     </li>
                
                     <li class="mb-4">
-                        <a href="{{ route('student.feedbacks.index') }}" class="py-12 text-15 px-20 hover-bg-gray-50 text-gray-300 rounded-8 flex-align gap-8 fw-medium text-15 {{ request()->routeIs('student.feedbacks.*') ? 'bg-primary-50 text-primary-600' : '' }}">
-                            <span class="text-2xl {{ request()->routeIs('student.feedbacks.*') ? 'text-primary-600' : 'text-primary-600' }} d-flex">
+                        <a href="{{ route('student.messages.index') }}" class="py-12 text-15 px-20 hover-bg-gray-50 text-gray-300 rounded-8 flex-align gap-8 fw-medium text-15 {{ request()->routeIs('student.messages.*') ? 'bg-primary-50 text-primary-600' : '' }}">
+                            <span class="text-2xl {{ request()->routeIs('student.messages.*') ? 'text-primary-600' : 'text-primary-600' }} d-flex">
                                 <i class="ph ph-chats-teardrop"></i>
                             </span>
                             <span class="text">Inbox</span>
                         </a>
                     </li>
+                
                 
                     <li class="pt-8 border-top border-gray-100">
                         <a href="#" id="logoutBtn" class="py-12 text-15 px-20 hover-bg-danger-50 text-gray-300 hover-text-danger-600 rounded-8 flex-align gap-8 fw-medium text-15">
@@ -848,6 +725,10 @@
 </div>
     </div>
 
+    <script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
+
+<!-- Or use the web component version -->
+<script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Notification system variables
@@ -917,14 +798,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Display notifications in the dropdown
+    // Display notifications in the dropdown - UPDATED WITH CLEAN STYLING
     function displayNotifications(notifications) {
         if (notifications.length === 0) {
             notificationsList.innerHTML = `
-                <div class="text-center py-32">
-                    <i class="ph ph-bell-slash text-4xl text-gray-400 mb-12"></i>
-                    <p class="text-gray-500 mb-0">No notifications yet</p>
-                    <small class="text-gray-400">You're all caught up!</small>
+                <div class="notification-empty">
+                    <i class="ph ph-bell-slash"></i>
+                    <p class="mb-0">No notifications yet</p>
+                    <small>You're all caught up!</small>
                 </div>
             `;
             return;
@@ -935,23 +816,24 @@ document.addEventListener('DOMContentLoaded', function() {
             const isUnread = !notification.is_read;
             const timeAgo = formatTimeAgo(notification.created_at);
             const icon = getNotificationIcon(notification.type);
+            const iconBgClass = getNotificationIconClass(notification.type);
             const bgClass = isUnread ? 'bg-primary-25' : '';
             
             notificationsHtml += `
                 <div class="notification-item ${bgClass} p-16 border-bottom border-gray-100 position-relative" data-notification-id="${notification.id}">
-                    ${isUnread ? '<span class="position-absolute top-16 end-16 w-8 h-8 bg-primary-600 rounded-circle"></span>' : ''}
-                    <div class="flex-align gap-12">
-                        <div class="w-40 h-40 bg-${getNotificationColor(notification.type)}-50 text-${getNotificationColor(notification.type)}-600 rounded-circle flex-center">
+                    ${isUnread ? '<span class="position-absolute top-16 end-16 w-8 h-8" style="background: #6366f1; border-radius: 50%;"></span>' : ''}
+                    <div class="d-flex align-items-start gap-12">
+                        <div class="w-40 h-40 ${iconBgClass} rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
                             <i class="${icon}"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <h6 class="text-sm fw-semibold mb-4 ${isUnread ? 'text-gray-900' : 'text-gray-600'}">${notification.title}</h6>
-                            <p class="text-xs text-gray-500 mb-8">${notification.message}</p>
-                            <div class="flex-between">
-                                <small class="text-gray-400">${timeAgo}</small>
-                                <div class="flex-align gap-8">
-                                    ${isUnread ? `<button class="mark-read-btn text-xs text-primary-600 hover-text-primary-700 border-0 bg-transparent p-0" data-notification-id="${notification.id}">Mark as read</button>` : ''}
-                                    <button class="delete-notification-btn text-xs text-danger-600 hover-text-danger-700 border-0 bg-transparent p-0" data-notification-id="${notification.id}">Delete</button>
+                            <h6 class="mb-1">${notification.title}</h6>
+                            <p class="mb-2">${notification.message}</p>
+                            <div class="d-flex align-items-center justify-content-between">
+                                <small>${timeAgo}</small>
+                                <div class="d-flex align-items-center gap-2">
+                                    ${isUnread ? `<button class="mark-read-btn" data-notification-id="${notification.id}">Mark as read</button>` : ''}
+                                    <button class="delete-notification-btn" data-notification-id="${notification.id}">Delete</button>
                                 </div>
                             </div>
                         </div>
@@ -1007,10 +889,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 const notificationItem = document.querySelector(`[data-notification-id="${notificationId}"]`);
                 if (notificationItem) {
                     notificationItem.classList.remove('bg-primary-25');
-                    notificationItem.querySelector('.position-absolute.w-8.h-8')?.remove();
-                    notificationItem.querySelector('.mark-read-btn')?.remove();
-                    notificationItem.querySelector('h6').classList.remove('text-gray-900');
-                    notificationItem.querySelector('h6').classList.add('text-gray-600');
+                    const unreadDot = notificationItem.querySelector('.position-absolute[style*="background: #6366f1"]');
+                    if (unreadDot) unreadDot.remove();
+                    const markReadBtn = notificationItem.querySelector('.mark-read-btn');
+                    if (markReadBtn) markReadBtn.remove();
+                    
+                    // Update text styling
+                    const title = notificationItem.querySelector('h6');
+                    if (title) {
+                        title.style.color = '#6b7280';
+                        title.style.fontWeight = '600';
+                    }
                 }
                 
                 // Update badge count
@@ -1042,13 +931,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Remove notification from DOM
                 const notificationItem = document.querySelector(`[data-notification-id="${notificationId}"]`);
                 if (notificationItem) {
+                    // Check if it was unread before removing
+                    const wasUnread = notificationItem.classList.contains('bg-primary-25');
                     notificationItem.remove();
-                }
-                
-                // Update badge if it was unread
-                if (notificationItem && notificationItem.classList.contains('bg-primary-25')) {
-                    const currentCount = parseInt(notificationBadge.textContent) || 0;
-                    updateNotificationBadge(Math.max(0, currentCount - 1));
+                    
+                    // Update badge if it was unread
+                    if (wasUnread) {
+                        const currentCount = parseInt(notificationBadge.textContent) || 0;
+                        updateNotificationBadge(Math.max(0, currentCount - 1));
+                    }
                 }
                 
                 // Check if no notifications left
@@ -1122,7 +1013,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (count > 0) {
             notificationBadge.textContent = count > 99 ? '99+' : count;
             notificationBadge.classList.remove('d-none');
-            notificationBtn.classList.add('shaking-animation');
+            // Remove shaking animation for cleaner look
+            // notificationBtn.classList.add('shaking-animation');
         } else {
             notificationBadge.classList.add('d-none');
             notificationBtn.classList.remove('shaking-animation');
@@ -1132,8 +1024,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show loading state
     function showNotificationLoading() {
         notificationsList.innerHTML = `
-            <div class="notification-loading text-center py-24">
-                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+            <div class="notification-loading">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
                 Loading notifications...
@@ -1141,13 +1033,13 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
     
-    // Show error state
+    // Show error state - UPDATED WITH CLEAN STYLING
     function showNotificationError(message) {
         notificationsList.innerHTML = `
-            <div class="text-center py-32">
-                <i class="ph ph-warning-circle text-4xl text-danger mb-12"></i>
-                <p class="text-danger mb-0">${message}</p>
-                <button class="btn btn-sm btn-outline-primary mt-12" onclick="loadNotifications()">Try Again</button>
+            <div class="notification-empty">
+                <i class="ph ph-warning-circle" style="color: #dc3545;"></i>
+                <p class="mb-2" style="color: #dc3545;">${message}</p>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadNotifications()">Try Again</button>
             </div>
         `;
     }
@@ -1177,37 +1069,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 30000); // Poll every 30 seconds
     }
     
-    // Helper functions
+    // UPDATED Helper functions with clean styling
     function getNotificationIcon(type) {
         const icons = {
-            'user_created': 'ph-user-plus',
-            'course_created': 'ph-book',
-            'assignment_created': 'ph-clipboard-text',
-            'assignment_submitted': 'ph-file-arrow-up',
-            'material_uploaded': 'ph-file-plus',
-            'system': 'ph-gear',
-            'warning': 'ph-warning',
-            'info': 'ph-info',
-            'success': 'ph-check-circle',
-            'error': 'ph-x-circle'
+            'user_created': 'ph ph-user-plus',
+            'course_created': 'ph ph-book',
+            'assignment_created': 'ph ph-clipboard-text',
+            'assignment_submitted': 'ph ph-file-arrow-up',
+            'material_uploaded': 'ph ph-file-plus',
+            'system': 'ph ph-gear',
+            'warning': 'ph ph-warning',
+            'info': 'ph ph-info',
+            'success': 'ph ph-check-circle',
+            'error': 'ph ph-x-circle'
         };
-        return icons[type] || 'ph-bell';
+        return icons[type] || 'ph ph-bell';
     }
     
-    function getNotificationColor(type) {
-        const colors = {
-            'user_created': 'primary',
-            'course_created': 'success',
-            'assignment_created': 'warning',
-            'assignment_submitted': 'info',
-            'material_uploaded': 'secondary',
-            'system': 'primary',
-            'warning': 'warning',
-            'info': 'info',
-            'success': 'success',
-            'error': 'danger'
+    function getNotificationIconClass(type) {
+        const classes = {
+            'user_created': 'notification-icon-bg-info',
+            'course_created': 'notification-icon-bg-course',
+            'assignment_created': 'notification-icon-bg-assignment',
+            'assignment_submitted': 'notification-icon-bg-info',
+            'material_uploaded': 'notification-icon-bg-material',
+            'system': 'notification-icon-bg-system',
+            'warning': 'notification-icon-bg-warning',
+            'info': 'notification-icon-bg-info',
+            'success': 'notification-icon-bg-success',
+            'error': 'notification-icon-bg-error'
         };
-        return colors[type] || 'primary';
+        return classes[type] || 'notification-icon-bg-info';
     }
     
     function formatTimeAgo(dateString) {
@@ -1238,6 +1130,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // ==================== ALERT SYSTEM ====================
+    
     // Handle alert dismissal
     document.querySelectorAll('.alert .btn-close').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
@@ -1271,6 +1165,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 6000);
     }
 
+    // ==================== LOGOUT SYSTEM ====================
+    
     // AJAX Logout functionality
     const logoutBtn = document.getElementById('logoutBtn');
     const logoutIcon = document.querySelector('.logout-icon');
@@ -1298,7 +1194,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
             // Make AJAX request
-            fetch('{{ route("logout.ajax") }}', {
+            fetch('/logout', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1307,16 +1203,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 credentials: 'same-origin'
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message briefly before redirect
-                    console.log('Logout successful:', data.message);
-                    
+            .then(response => {
+                if (response.ok) {
                     // Redirect to login page
-                    window.location.href = data.redirect;
+                    window.location.href = '/login';
                 } else {
-                    throw new Error(data.message || 'Logout failed');
+                    throw new Error('Logout failed');
                 }
             })
             .catch(error => {
@@ -1334,9 +1226,154 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // ==================== SIDEBAR FUNCTIONALITY ====================
+    
+    // Handle sidebar dropdown toggles
+    document.querySelectorAll('.sidebar-menu__item.has-dropdown > .sidebar-menu__link').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const parentItem = this.closest('.sidebar-menu__item');
+            const submenu = parentItem.querySelector('.sidebar-submenu');
+            
+            if (submenu) {
+                // Toggle current dropdown
+                parentItem.classList.toggle('open');
+                
+                // Close other dropdowns
+                document.querySelectorAll('.sidebar-menu__item.has-dropdown').forEach(function(item) {
+                    if (item !== parentItem) {
+                        item.classList.remove('open');
+                    }
+                });
+            }
+        });
+    });
+
+    // ==================== UTILITY FUNCTIONS ====================
+    
+    // Global function to reload notifications (can be called from anywhere)
+    window.loadNotifications = loadNotifications;
+    
+    // Global function to show success message
+    window.showSuccessMessage = function(message) {
+        const alertHtml = `
+            <div class="alert alert-success alert-dismissible fade show mb-24" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="ph ph-check-circle text-success me-12 text-xl"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-4 text-success fw-semibold">Success!</h6>
+                        <p class="mb-0 text-success-emphasis">${message}</p>
+                    </div>
+                    <button type="button" class="btn-close ms-12" data-dismiss="alert" aria-label="Close">
+                        <i class="ph ph-x text-success"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        const dashboardBody = document.querySelector('.dashboard-body');
+        if (dashboardBody) {
+            dashboardBody.insertAdjacentHTML('afterbegin', alertHtml);
+            
+            // Auto dismiss after 5 seconds
+            setTimeout(() => {
+                const alert = dashboardBody.querySelector('.alert-success');
+                if (alert) {
+                    alert.classList.remove('show');
+                    alert.classList.add('fade');
+                    setTimeout(() => alert.remove(), 300);
+                }
+            }, 5000);
+        }
+    };
+    
+    // Global function to show error message
+    window.showErrorMessage = function(message) {
+        const alertHtml = `
+            <div class="alert alert-danger alert-dismissible fade show mb-24" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="ph ph-warning-circle text-danger me-12 text-xl"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-4 text-danger fw-semibold">Error!</h6>
+                        <p class="mb-0 text-danger-emphasis">${message}</p>
+                    </div>
+                    <button type="button" class="btn-close ms-12" data-dismiss="alert" aria-label="Close">
+                        <i class="ph ph-x text-danger"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        const dashboardBody = document.querySelector('.dashboard-body');
+        if (dashboardBody) {
+            dashboardBody.insertAdjacentHTML('afterbegin', alertHtml);
+        }
+    };
+
+    // ==================== RESPONSIVE HANDLING ====================
+    
+    // Handle mobile sidebar toggle
+    const toggleBtn = document.querySelector('.toggle-btn');
+    const sidebar = document.querySelector('.sidebar');
+    const sideOverlay = document.querySelector('.side-overlay');
+    const sidebarCloseBtn = document.querySelector('.sidebar-close-btn');
+
+    if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', function() {
+            sidebar.classList.add('active');
+            if (sideOverlay) sideOverlay.classList.add('show');
+        });
+    }
+
+    if (sidebarCloseBtn && sidebar) {
+        sidebarCloseBtn.addEventListener('click', function() {
+            sidebar.classList.remove('active');
+            if (sideOverlay) sideOverlay.classList.remove('show');
+        });
+    }
+
+    if (sideOverlay && sidebar) {
+        sideOverlay.addEventListener('click', function() {
+            sidebar.classList.remove('active');
+            sideOverlay.classList.remove('show');
+        });
+    }
+
+    // ==================== PERFORMANCE OPTIMIZATIONS ====================
+    
+    // Debounce function for performance
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Throttle function for scroll events
+    function throttle(func, limit) {
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        }
+    }
+
+    // ==================== INITIALIZATION COMPLETE ====================
+    
+    console.log('Student dashboard initialized successfully');
 });
 </script>
-
         <!-- Jquery js -->
     <script src="{{ url('assets/js/jquery-3.7.1.min.js?v=' .env("CACHE_VERSION")) }}"></script>
     <!-- Bootstrap Bundle Js -->

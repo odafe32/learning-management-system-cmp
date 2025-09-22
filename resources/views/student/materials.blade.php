@@ -104,7 +104,7 @@
                             <iconify-icon icon="solar:magnifer-outline" class="icon"></iconify-icon>
                             Search & Filter
                         </button>
-                        <a href="{{ route('student.materials.index') }}" class="btn btn-outline-secondary">
+                        <a href="{{ route('student.materials.index') }}" class="btn btn-secondary">
                             <iconify-icon icon="solar:refresh-outline" class="icon"></iconify-icon>
                             Clear Filters
                         </a>
@@ -225,21 +225,21 @@
                                 
                                 @if($material->file_exists ?? false)
                                     <a href="{{ route('student.materials.download', $material->id) }}" 
-                                       class="btn btn-outline-success btn-sm" 
+                                       class="btn btn-success btn-sm" 
                                        title="Download">
                                         <iconify-icon icon="solar:download-outline" class="icon"></iconify-icon>
                                     </a>
                                     
                                     @if(in_array($fileType, ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'mp4', 'mp3']))
                                         <a href="{{ route('student.materials.stream', $material->id) }}" 
-                                           class="btn btn-outline-info btn-sm" 
+                                           class="btn btn-info btn-sm" 
                                            target="_blank"
                                            title="Preview">
                                             <iconify-icon icon="solar:play-outline" class="icon"></iconify-icon>
                                         </a>
                                     @endif
                                 @else
-                                    <span class="btn btn-outline-danger btn-sm disabled" title="File not available">
+                                    <span class="btn btn-danger btn-sm disabled" title="File not available">
                                         <iconify-icon icon="solar:close-circle-outline" class="icon"></iconify-icon> Not Available
                                     </span>
                                 @endif
@@ -266,7 +266,7 @@
                     @if(isset($currentFilters) && array_filter($currentFilters))
                         <p class="text-secondary-light mb-3">No materials match your current search criteria.</p>
                         <div class="d-flex justify-content-center gap-2">
-                            <a href="{{ route('student.materials.index') }}" class="btn btn-outline-primary">
+                            <a href="{{ route('student.materials.index') }}" class="btn btn-primary">
                                 <iconify-icon icon="solar:refresh-outline" class="icon"></iconify-icon>
                                 Clear Filters
                             </a>
